@@ -108,3 +108,36 @@ jobs:
 
       - name: 테스트
         run: pytest -q
+
+  # 브랜치 보호 규칙에 필수 status check로 지정할 대상은 이 잡 하나다.
+  #
+  # 위 frontend/backend 잡은 paths-filter 때문에 조건부로 실행된다.
+  # 프론트만 고친 PR에서는 backend 잡이 skipped 되는데, GitHub는 skipped된
+  # 필수 체크를 "아직 보고되지 않음"으로 처리해 PR을 영구히 블록한다.
+  # 그래서 항상 실행되는 이 잡이 선행 잡 결과를 대신 판정한다.
+  ci-gate:
+    name: CI 통과
+    needs: [changes, frontend, backend]
+    # 선행 잡이 실패하거나 skip돼도 이 잡은 반드시 실행되어야 결과를 보고할 수 있다.
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 선행 잡 결과 판정
+        # 아래 for 루프는 단어 분할에 의존한다. zsh 등에서는 동작이 달라지므로 셸을 고정한다.
+        shell: bash
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          set -euo pipefail
+          echo "선행 잡 결과: ${RESULTS}"
+          for result in ${RESULTS}; do
+            case "${result}" in
+              # skipped는 "해당 앱에 변경이 없었다"는 뜻이므로 통과로 본다.
+              success | skipped) ;;
+              *)
+                echo "::error::선행 잡이 '${result}' 상태입니다."
+                exit 1
+                ;;
+            esac
+          done
+          echo "모든 선행 잡 통과"
