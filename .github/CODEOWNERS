@@ -1,0 +1,24 @@
+# 리뷰 자동 라우팅
+#
+# PR이 건드린 경로에 따라 담당 팀에 리뷰가 자동 요청된다.
+# 아래로 갈수록 우선순위가 높다 (마지막에 매칭된 규칙이 적용됨).
+#
+# 주의: 리뷰 "요청"만 자동화될 뿐, 코드 오너 승인을 강제하지는 않는다.
+#       현재 룰셋은 팀 무관하게 승인 1건만 요구한다.
+#       경로별 승인을 강제하려면 룰셋의 require_code_owner_review를 켜야 한다.
+
+# 기본값 — 루트 설정 파일(.gitignore, README 등)은 양쪽 팀에 요청
+*                   @Ctrl-Alt-Defend-KR/frontend @Ctrl-Alt-Defend-KR/backend
+
+# 앱별 담당
+/frontend/          @Ctrl-Alt-Defend-KR/frontend
+/backend/           @Ctrl-Alt-Defend-KR/backend
+
+# CI/CD·보안 파이프라인 — 개발계획서상 DevOps 겸임은 BE-A
+/.github/           @Ctrl-Alt-Defend-KR/backend
+
+# 프로젝트 계약서와 문서는 양쪽 합의가 필요하다.
+# 특히 CLAUDE.md 6절(API 계약)은 프론트/백엔드가 공유하는 유일한 인터페이스이므로
+# 한쪽만 바꾸면 반대편이 깨진다.
+/CLAUDE.md          @Ctrl-Alt-Defend-KR/frontend @Ctrl-Alt-Defend-KR/backend
+/docs/              @Ctrl-Alt-Defend-KR/frontend @Ctrl-Alt-Defend-KR/backend
