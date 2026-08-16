@@ -24,3 +24,5 @@ export default function App() {
     </main>
   );
 }
+
+// 게이트 잡 skip 경로 검증용 임시 변경
