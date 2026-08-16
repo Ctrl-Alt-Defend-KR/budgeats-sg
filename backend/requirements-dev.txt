@@ -1,0 +1,8 @@
+# 개발·CI 전용 의존성
+-r requirements.txt
+
+pytest
+pytest-asyncio
+ruff
+bandit
+pip-audit
