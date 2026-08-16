@@ -48,8 +48,8 @@
 
 | 영역 | 기술 |
 |---|---|
-| Frontend | React 18, Vite, Google Maps JavaScript API |
-| Backend | Python 3.11+, FastAPI, SQLAlchemy 2.x, Pydantic v2, Alembic |
+| Frontend | React 19, TypeScript, Vite 8, Vitest, Google Maps JavaScript API |
+| Backend | Python 3.11+, FastAPI, SQLAlchemy 2.x, Pydantic v2, Alembic, pytest |
 | DB | PostgreSQL 15+ |
 | 인증 | Google OAuth 2.0 (HttpOnly 세션 쿠키) |
 | CI/CD | GitHub Actions (gitleaks, 의존성 취약점 스캔) |
@@ -61,17 +61,31 @@
 
 ```
 budgeats-sg/
-├── CLAUDE.md              # 프로젝트 계약서 (개요·규칙·데이터 모델·API 스펙)
+├── CLAUDE.md               # 프로젝트 계약서 (개요·규칙·데이터 모델·API 스펙)
 ├── README.md
 ├── .gitignore
+├── .github/
+│   ├── CODEOWNERS          # 경로별 리뷰 자동 라우팅
+│   └── workflows/
+│       ├── security.yml    # gitleaks 시크릿 스캔
+│       └── ci.yml          # lint · typecheck · test · build · 취약점 스캔
 ├── docs/
-│   ├── SRS.md             # 소프트웨어 요구사항 명세
-│   └── development-plan.md# 5일 스프린트 개발 계획
+│   ├── SRS.md              # 소프트웨어 요구사항 명세
+│   └── development-plan.md # 5일 스프린트 개발 계획
 ├── frontend/
-│   ├── CLAUDE.md          # 프론트엔드 전용 지침
+│   ├── CLAUDE.md           # 프론트엔드 전용 지침
+│   ├── eslint.config.js    # CLAUDE.md 보안 규칙이 린트로 강제됨
+│   ├── src/
+│   │   ├── api/            # 백엔드 통신 레이어 (여기서만 fetch 허용)
+│   │   └── constants/      # 가격 등급 색상·라벨
 │   └── .env.example
 └── backend/
-    ├── CLAUDE.md          # 백엔드 전용 지침
+    ├── CLAUDE.md           # 백엔드 전용 지침
+    ├── app/
+    │   ├── core/           # 설정(config), 공통 응답·에러(errors)
+    │   ├── routers/        # 엔드포인트
+    │   └── main.py
+    ├── tests/
     └── .env.example
 ```
 
@@ -125,16 +139,22 @@ createdb budgeats
 
 ```bash
 cd backend
-cp .env.example .env          # 값 채우기 (DB, Places 키, OAuth, SESSION_SECRET)
-python -m venv .venv
-source .venv/bin/activate     # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-alembic upgrade head          # 스키마 생성
+cp .env.example .env           # 값 채우기 (DB, Places 키, OAuth, SESSION_SECRET)
+python3.11 -m venv .venv       # ⚠️ python3 가 아니라 python3.11
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
+> **macOS 주의**: `python3`는 시스템 기본 3.9를 가리키는 경우가 많습니다.
+> `python3 -V`로 확인하고 3.11 미만이면 `brew install python@3.11` 후 `python3.11`을 쓰세요.
+
 - API 서버: http://localhost:8000
+- 헬스체크: http://localhost:8000/api/v1/health
 - Swagger UI: http://localhost:8000/docs
+
+> DB 스키마와 Alembic 마이그레이션은 아직 없습니다 (BE-B 담당, Day 1).
+> 현재 뼈대는 DB 연결 없이 기동합니다.
 
 `SESSION_SECRET` 생성:
 ```bash
@@ -164,6 +184,33 @@ npm run dev
 | `backend/.env.example` | `.env` | Places 키·OAuth 시크릿·DB 비밀번호가 들어갑니다. 커밋 금지 |
 
 **`.env` 파일은 `.gitignore`에 포함되어 있으며, CI에서 gitleaks가 시크릿 유출을 검사합니다.**
+
+---
+
+## 개발 명령어
+
+PR을 열기 전에 아래를 로컬에서 통과시키면 CI에서 되돌아올 일이 줄어듭니다.
+
+**Frontend** (`cd frontend`)
+
+| 명령 | 설명 |
+|---|---|
+| `npm run dev` | 개발 서버 |
+| `npm run lint` | ESLint. `src/api` 밖 `fetch`, `localStorage` 사용을 차단 |
+| `npm run typecheck` | 타입 검사 |
+| `npm test` | Vitest |
+| `npm run build` | 타입 검사 + 프로덕션 빌드 |
+
+**Backend** (`cd backend`, venv 활성화 상태)
+
+| 명령 | 설명 |
+|---|---|
+| `uvicorn app.main:app --reload` | 개발 서버 |
+| `ruff check .` | 린트 (보안 룰 S 포함) |
+| `ruff format .` | 포맷 적용 (CI는 `--check`로 검사) |
+| `bandit -c pyproject.toml -r app -q` | 정적 보안 분석 |
+| `pytest -q` | 테스트 |
+| `pip-audit -r requirements.txt` | 의존성 취약점 스캔 |
 
 ---
 

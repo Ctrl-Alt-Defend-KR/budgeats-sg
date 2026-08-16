@@ -14,10 +14,12 @@ React SPA. 지도 렌더링과 사용자 인터랙션만 담당하며, 데이터
 
 | 항목 | 선택 |
 |---|---|
-| 빌드 도구 | Vite |
-| 프레임워크 | React 18 |
+| 빌드 도구 | Vite 8 |
+| 언어 | TypeScript |
+| 프레임워크 | React 19 |
 | 지도 | Google Maps JavaScript API (렌더링 전용) |
-| 서버 통신 | `fetch` + `credentials: 'include'` |
+| 서버 통신 | `fetch` + `credentials: 'include'` (`src/api/client.ts`) |
+| 테스트 | Vitest |
 
 ## 디렉토리 구조
 
@@ -25,15 +27,24 @@ React SPA. 지도 렌더링과 사용자 인터랙션만 담당하며, 데이터
 frontend/
 ├── src/
 │   ├── api/          ← 백엔드 통신 레이어 (엔드포인트당 함수 1개)
+│   │   └── client.ts ← apiFetch: 쿠키 전송·응답 언래핑·에러 변환을 여기서만 처리
 │   ├── components/   ← 재사용 UI (Map, PinMarker, ReviewForm, Sidebar ...)
 │   ├── pages/        ← 라우트 단위 화면
 │   ├── hooks/        ← useDebounce, useCurrentPosition, useAuth ...
 │   └── constants/    ← 핀 색상, 가격 등급 라벨 등 (매직 넘버 금지)
+├── eslint.config.js
+├── vite.config.ts
 ├── .env.example
 └── CLAUDE.md
 ```
 
+> `components/`, `pages/`, `hooks/`는 아직 비어 있습니다. 각 담당자가 첫 파일을 만들면서 생성하세요.
+
 ## 이 저장소의 규칙
+
+> 아래 규칙 중 **`fetch` 직접 호출 금지**와 **브라우저 저장소 사용 금지**는
+> `eslint.config.js`에 린트 규칙으로 박혀 있어 `npm run lint`에서 걸립니다.
+> 리뷰에서 놓쳐도 CI가 잡습니다.
 
 ### 통신
 - **백엔드 통신은 반드시 `src/api` 레이어를 경유합니다.** 컴포넌트/훅에서 직접 `fetch`를 호출하지 마세요.

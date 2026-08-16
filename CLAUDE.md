@@ -169,6 +169,7 @@ Claude Code가 해당 디렉토리에서 작업할 때 이 파일과 함께 자�
 
 | Method | Endpoint | 설명 |
 |---|---|---|
+| GET | `/health` | 서버 기동 확인 (배포 헬스체크용) |
 | GET | `/auth/google` | Google OAuth2 로그인 시작 |
 | GET | `/auth/google/callback` | OAuth2 콜백 |
 | POST | `/auth/logout` 🔒 | 로그아웃 |

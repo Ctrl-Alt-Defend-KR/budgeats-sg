@@ -1,0 +1,110 @@
+# 빌드·테스트·정적분석·의존성 취약점 스캔
+#
+# 근거: docs/development-plan.md 4.1절
+# 시크릿 스캔은 별도 워크플로(security.yml)에서 먼저 돈다.
+#
+# 앱별로 잡을 나누고 paths-filter로 변경된 쪽만 실행한다.
+# 모노레포에서 프론트만 고쳤는데 백엔드 잡까지 도는 것은 5일 일정에서 낭비다.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: 변경 범위 판별
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+
+  frontend:
+    name: Frontend (lint · typecheck · test · build)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 의존성 취약점 스캔
+        # moderate 이상이면 실패. 개발 전용 의존성의 저위험 경고까지 막으면
+        # 5일 일정에서 대응 비용만 커진다.
+        run: npm audit --audit-level=moderate
+
+      - name: 린트
+        # src/api 밖 fetch 사용, localStorage 사용을 여기서 잡는다 (CLAUDE.md 3.2절)
+        run: npm run lint
+
+      - name: 타입 검사
+        run: npm run typecheck
+
+      - name: 테스트
+        run: npm test
+
+      - name: 빌드
+        run: npm run build
+
+  backend:
+    name: Backend (ruff · bandit · pytest)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: 의존성 설치
+        run: pip install -r requirements-dev.txt
+
+      - name: 의존성 취약점 스캔
+        run: pip-audit -r requirements.txt
+
+      - name: 린트
+        run: ruff check .
+
+      - name: 포맷 검사
+        run: ruff format --check .
+
+      - name: 정적 보안 분석
+        run: bandit -c pyproject.toml -r app -q
+
+      - name: 테스트
+        run: pytest -q
