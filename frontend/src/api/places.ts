@@ -79,7 +79,7 @@ function generateMockPlaces({ lat, lng, radius }: FetchNearbyPlacesParams): Plac
   const rng = mulberry32(hashLatLng(lat, lng));
   const spreadKm = (radius ?? MOCK_DEFAULT_RADIUS_M) / 1000;
 
-  return Array.from({ length: MOCK_PLACE_COUNT }, (_, i) => {
+  const places = Array.from({ length: MOCK_PLACE_COUNT }, (_, i) => {
     const bearingDeg = (360 / MOCK_PLACE_COUNT) * i + rng() * 20;
     const distanceKm = spreadKm * (0.15 + rng() * 0.85);
     const position = offsetLatLng({ lat, lng }, distanceKm, bearingDeg);
@@ -105,6 +105,10 @@ function generateMockPlaces({ lat, lng, radius }: FetchNearbyPlacesParams): Plac
       ownReviewCount,
     } satisfies PlaceSummary;
   });
+
+  // 계약 6.3절: 정렬은 백엔드가 rating 내림차순으로 내려준다 (FR-302).
+  // 프론트(Sidebar)는 재정렬하지 않으므로, 목도 같은 계약을 지켜야 한다.
+  return places.sort((a, b) => b.rating - a.rating);
 }
 
 function pickPriceTier(rng: () => number): PriceTier {

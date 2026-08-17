@@ -66,6 +66,16 @@ describe('fetchNearbyPlaces (mock)', () => {
     }
   });
 
+  it('rating 내림차순으로 정렬해 반환한다 (Sidebar가 재정렬하지 않는 전제)', async () => {
+    const promise = fetchNearbyPlaces(SINGAPORE_CENTER);
+    await vi.runAllTimersAsync();
+    const places = await promise;
+
+    for (let i = 1; i < places.length; i += 1) {
+      expect(places[i - 1].rating).toBeGreaterThanOrEqual(places[i].rating);
+    }
+  });
+
   it('호출 전에 이미 취소된 signal이면 AbortError로 reject한다', async () => {
     const controller = new AbortController();
     controller.abort();

@@ -1,0 +1,78 @@
+/* Sidebar 전용 스타일. 카드 룩은 전역 .overlay-card를 함께 쓴다. */
+
+.sidebar {
+  /* 부모(.overlay-top-right)의 max-height 안에서 내부 리스트만 스크롤한다. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 18rem;
+  max-width: 100%;
+  padding: 0.75rem 0;
+}
+
+.sidebar-title {
+  margin: 0 1rem 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #495057;
+}
+
+.sidebar-empty {
+  margin: 0 1rem;
+  font-size: 0.875rem;
+  color: #868e96;
+}
+
+.sidebar-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.sidebar-item:hover,
+.sidebar-item:focus-visible {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-item-dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 0.375rem;
+}
+
+.sidebar-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.sidebar-item-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-item-meta {
+  font-size: 0.75rem;
+  color: #495057;
+}

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchNearbyPlaces } from '../api/places';
-import type { PlaceSummary } from '../api/types';
+import type { PlaceGradePatch, PlaceSummary } from '../api/types';
 import { MAP_DEFAULTS } from '../constants/map';
 import { useDebounce } from './useDebounce';
 
@@ -13,6 +13,19 @@ interface UseNearbyPlacesResult {
   places: PlaceSummary[];
   loading: boolean;
   error: Error | null;
+  /**
+   * 리뷰 저장·삭제 응답의 `place`로 핀 하나만 갱신한다 (docs/frontend-agent-plan.md 2절 seam).
+   * `placeId`가 현재 목록에 없으면 아무 일도 하지 않는다 — 뷰포트 밖 식당의 리뷰는 무시한다.
+   */
+  applyPlaceGradePatch: (patch: PlaceGradePatch) => void;
+}
+
+/** `places` 배열에서 `patch.placeId`와 일치하는 항목에만 patch 필드를 덮어쓴다. */
+export function mergePlaceGradePatch(
+  places: PlaceSummary[],
+  patch: PlaceGradePatch,
+): PlaceSummary[] {
+  return places.map((place) => (place.placeId === patch.placeId ? { ...place, ...patch } : place));
 }
 
 /**
@@ -77,5 +90,9 @@ export function useNearbyPlaces(center: MapCenter | null, radius?: number): UseN
     };
   }, [lat, lng, radius]);
 
-  return { places, loading, error };
+  const applyPlaceGradePatch = useCallback((patch: PlaceGradePatch) => {
+    setPlaces((prev) => mergePlaceGradePatch(prev, patch));
+  }, []);
+
+  return { places, loading, error, applyPlaceGradePatch };
 }

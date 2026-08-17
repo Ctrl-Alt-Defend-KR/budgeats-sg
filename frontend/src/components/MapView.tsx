@@ -1,9 +1,23 @@
-import { useEffect, useState } from 'react';
-import { APIProvider, Map, type MapCameraChangedEvent } from '@vis.gl/react-google-maps';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { APIProvider, Map, useMap, type MapCameraChangedEvent } from '@vis.gl/react-google-maps';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID, MAP_DEFAULTS } from '../constants/map';
-import { useNearbyPlaces, type MapCenter } from '../hooks/useNearbyPlaces';
+import type { MapCenter } from '../hooks/useNearbyPlaces';
+import type { PlaceSummary } from '../api/types';
 import PinMarker from './PinMarker';
 import './MapView.css';
+
+export interface MapViewHandle {
+  /** 사이드바 항목 클릭 시 호출 — 해당 핀으로 이동하고 강조한다 (frontend-agent-plan.md 4절 Day2). */
+  focusPlace: (placeId: string) => void;
+}
+
+export interface MapViewProps {
+  /** 초기 카메라 위치. 이후 사용자가 드래그해도 이 값을 다시 적용하지 않는다(비제어 카메라). */
+  center: MapCenter;
+  /** App.tsx가 소유한다 — Sidebar와 같은 데이터를 공유해야 해서 공통 조상에 둔다. */
+  places: PlaceSummary[];
+  onCenterChanged: (center: MapCenter) => void;
+}
 
 /**
  * 지도 렌더링 + 핀.
@@ -15,23 +29,29 @@ import './MapView.css';
  * Google attribution(로고)은 지도 컨테이너 **왼쪽 아래**에 그려진다.
  * 오버레이로 그 영역을 가리면 약관 위반이다. 레이아웃은 index.css 주석 참고.
  */
-export default function MapView() {
+const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
+  { center, places, onCenterChanged },
+  ref,
+) {
   if (!GOOGLE_MAPS_API_KEY) {
     return <MissingApiKeyNotice />;
   }
 
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
-      <MapWithPins />
+      <MapWithPins ref={ref} center={center} places={places} onCenterChanged={onCenterChanged} />
     </APIProvider>
   );
-}
+});
 
-function MapWithPins() {
-  // onCameraChanged가 초기 idle 시점에도 한 번 호출되므로, 초기값을 채워두면
-  // 이동 없이도 첫 조회가 나간다.
-  const [center, setCenter] = useState<MapCenter>(MAP_DEFAULTS.center);
-  const { places, error } = useNearbyPlaces(center);
+export default MapView;
+
+const MapWithPins = forwardRef<MapViewHandle, MapViewProps>(function MapWithPins(
+  { center, places, onCenterChanged },
+  ref,
+) {
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const map = useMap();
 
   useEffect(() => {
     if (!GOOGLE_MAPS_MAP_ID) {
@@ -43,21 +63,29 @@ function MapWithPins() {
     }
   }, []);
 
-  useEffect(() => {
-    if (error) {
-      // 사용자용 에러 UI는 Day 3에서 다룬다. 지금은 콘솔로만 노출한다.
-      console.error('[MapView] 주변 식당 조회 실패', error);
-    }
-  }, [error]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      focusPlace: (placeId: string) => {
+        const place = places.find((p) => p.placeId === placeId);
+        if (!place) {
+          return;
+        }
+        map?.panTo({ lat: place.lat, lng: place.lng });
+        setSelectedPlaceId(placeId);
+      },
+    }),
+    [places, map],
+  );
 
   const handleCameraChanged = (event: MapCameraChangedEvent) => {
-    setCenter(event.detail.center);
+    onCenterChanged(event.detail.center);
   };
 
   return (
     <Map
       className="map"
-      defaultCenter={MAP_DEFAULTS.center}
+      defaultCenter={center}
       defaultZoom={MAP_DEFAULTS.zoom}
       // 지도 스타일 ID가 없으면 기본 스타일로 뜬다. 빈 문자열은 넘기지 않는다.
       mapId={GOOGLE_MAPS_MAP_ID || undefined}
@@ -68,11 +96,16 @@ function MapWithPins() {
       onCameraChanged={handleCameraChanged}
     >
       {places.map((place) => (
-        <PinMarker key={place.placeId} place={place} />
+        <PinMarker
+          key={place.placeId}
+          place={place}
+          selected={place.placeId === selectedPlaceId}
+          onClick={(clicked) => setSelectedPlaceId(clicked.placeId)}
+        />
       ))}
     </Map>
   );
-}
+});
 
 /**
  * 키가 없으면 구글 스크립트가 조용히 실패해 흰 화면만 남는다.
