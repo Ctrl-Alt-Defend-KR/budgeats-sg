@@ -360,11 +360,17 @@ List<Review> findByPlaceIdOrderByCreatedAtDesc(String placeId);
 
 ```java
 // core/PlacePriceStats.java — Step 0 동결
-public record PlacePriceStats(String placeId, long reviewCount, BigDecimal avgPricePerPerson) {}
+public record PlacePriceStats(String placeId, Long reviewCount, Double avgPricePerPerson) {}
 
 // core/PlaceReviewSummary.java — Step 0 동결
-public record PlaceReviewSummary(long reviewCount, BigDecimal avgPricePerPerson, BigDecimal avgRating) {}
+public record PlaceReviewSummary(Long reviewCount, Double avgPricePerPerson, Double avgRating) {}
 ```
+
+> ⚠️ **BigDecimal이 아니라 Double이다.** JPQL `avg()`는 대상 컬럼 타입과 무관하게 항상 Double을
+> 반환한다(JPA 스펙 — 실제로 H2에서 실행해 확인함). `count()`는 Long. 레코드 필드 타입을
+> 쿼리 반환 타입과 다르게 선언하면 `SemanticException: Missing constructor` 로 기동 자체가 실패한다.
+> **A는 `PriceTierPolicy.resolve(...)` 호출 시 `BigDecimal.valueOf(avgPricePerPerson)` 로 변환해서 넘긴다**
+> (평균값이므로 부동소수점 오차가 SGD 등급 판정에 영향을 줄 수준이 아니다).
 
 > `findPriceStatsByPlaceIdIn` 이 **핀 20개에 쿼리 1번**을 보장합니다. place별로 반복 호출하면
 > NFR-P2(2초)를 지도 이동마다 놓칩니다. B는 이걸 Day 2 최우선으로 구현하세요 — A가 막힙니다.
