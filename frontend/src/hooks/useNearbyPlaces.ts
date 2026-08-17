@@ -18,6 +18,8 @@ interface UseNearbyPlacesResult {
    * `placeId`가 현재 목록에 없으면 아무 일도 하지 않는다 — 뷰포트 밖 식당의 리뷰는 무시한다.
    */
   applyPlaceGradePatch: (patch: PlaceGradePatch) => void;
+  /** 조회 실패 시 사용자가 다시 시도할 수 있게 한다. 중심이 그대로여도(디바운스 우회) 재조회한다. */
+  retry: () => void;
 }
 
 /** `places` 배열에서 `patch.placeId`와 일치하는 항목에만 patch 필드를 덮어쓴다. */
@@ -42,6 +44,9 @@ export function useNearbyPlaces(center: MapCenter | null, radius?: number): UseN
   const [places, setPlaces] = useState<PlaceSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  // retry()가 값을 바꿔 재조회를 강제한다. 디바운스를 거치지 않는다 —
+  // 사용자가 직접 누른 재시도까지 늦출 이유가 없다.
+  const [retryToken, setRetryToken] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
   // debouncedCenter는 매 안정 시점마다 새 객체이므로, 무한 재실행을 막기 위해
@@ -71,8 +76,8 @@ export function useNearbyPlaces(center: MapCenter | null, radius?: number): UseN
         if (err instanceof DOMException && err.name === 'AbortError') {
           return;
         }
-        // 에러를 삼키지 않는다 (CLAUDE.md 8절). 사용자용 로딩/에러 UI는 Day 3에서 다룬다
-        // (docs/frontend-agent-plan.md 4절) — 지금은 원인 추적용 로그만 남긴다.
+        // 에러를 삼키지 않는다 (CLAUDE.md 8절). 사용자용 에러·재시도 UI는 이 훅을 쓰는
+        // 쪽(Sidebar)이 error/retry로 보여준다 — 여기서는 원인 추적용 로그만 남긴다.
         const normalized = err instanceof Error ? err : new Error('알 수 없는 오류');
         console.error('[useNearbyPlaces] 조회 실패', normalized);
         setError(normalized);
@@ -88,11 +93,15 @@ export function useNearbyPlaces(center: MapCenter | null, radius?: number): UseN
     return () => {
       controller.abort();
     };
-  }, [lat, lng, radius]);
+  }, [lat, lng, radius, retryToken]);
 
   const applyPlaceGradePatch = useCallback((patch: PlaceGradePatch) => {
     setPlaces((prev) => mergePlaceGradePatch(prev, patch));
   }, []);
 
-  return { places, loading, error, applyPlaceGradePatch };
+  const retry = useCallback(() => {
+    setRetryToken((token) => token + 1);
+  }, []);
+
+  return { places, loading, error, applyPlaceGradePatch, retry };
 }

@@ -22,12 +22,12 @@ import { MAP_DEFAULTS } from './constants/map';
  */
 export default function App() {
   const [center, setCenter] = useState<MapCenter>(MAP_DEFAULTS.center);
-  const { places, error } = useNearbyPlaces(center);
+  const { places, loading, error, retry } = useNearbyPlaces(center);
   const mapRef = useRef<MapViewHandle>(null);
 
   useEffect(() => {
     if (error) {
-      // 사용자용 에러 UI는 Day 3에서 다룬다. 지금은 콘솔로만 노출한다.
+      // 사용자에게는 Sidebar가 에러·재시도 UI를 보여준다. 여기서는 원인 추적용 로그만 남긴다.
       console.error('[App] 주변 식당 조회 실패', error);
     }
   }, [error]);
@@ -51,7 +51,10 @@ export default function App() {
             예: <ReviewForm onSaved={(res) => applyPlaceGradePatch(res.place)} /> */}
         <Sidebar
           places={places}
+          loading={loading}
+          error={error}
           onSelectPlace={(placeId) => mapRef.current?.focusPlace(placeId)}
+          onRetry={retry}
         />
       </div>
 

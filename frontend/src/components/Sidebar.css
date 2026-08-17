@@ -17,10 +17,34 @@
   color: #495057;
 }
 
-.sidebar-empty {
+.sidebar-status {
   margin: 0 1rem;
   font-size: 0.875rem;
   color: #868e96;
+}
+
+.sidebar-status-inline {
+  margin: 0 1rem 0.5rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.375rem;
+  background-color: #fff5f5;
+  color: #c92a2a;
+}
+
+.sidebar-retry,
+.sidebar-retry-inline {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #1c7ed6;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.sidebar-retry {
+  margin: 0.5rem 1rem 0;
 }
 
 .sidebar-list {

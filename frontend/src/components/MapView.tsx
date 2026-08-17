@@ -91,6 +91,10 @@ const MapWithPins = forwardRef<MapViewHandle, MapViewProps>(function MapWithPins
       mapId={GOOGLE_MAPS_MAP_ID || undefined}
       // 지도가 화면의 주 조작 대상이므로 한 손가락 드래그·휠 줌을 바로 받는다.
       gestureHandling="greedy"
+      // 구글 기본 전체화면 컨트롤이 오른쪽 위에 뜨는데 Sidebar와 같은 자리다 — 끈다.
+      // 줌·로드뷰 컨트롤(오른쪽 아래)은 아직 그 자리에 우리 UI가 없어 그대로 둔다.
+      // (+) 버튼(B)이 생기면 같은 방식으로 재검토한다 — index.css .overlay-bottom-right 주석 참고.
+      fullscreenControl={false}
       // 드래그와 줌을 각각 잡지 않고 하나로 묶는다 — 어느 쪽으로 이동했든
       // 디바운스는 useNearbyPlaces 안에서 한 곳으로 처리된다.
       onCameraChanged={handleCameraChanged}
