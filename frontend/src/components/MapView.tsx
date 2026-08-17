@@ -1,5 +1,6 @@
 import { APIProvider, Map } from '@vis.gl/react-google-maps';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID, MAP_DEFAULTS } from '../constants/map';
+import './MapView.css';
 
 /**
  * 지도 렌더링.
