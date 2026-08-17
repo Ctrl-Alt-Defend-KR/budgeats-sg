@@ -35,10 +35,11 @@
    ├─ Frontend (React + Vite)  :5173
    │     └─ Google Maps JavaScript API  ← 지도 렌더링 전용
    │
-   └─ Backend (FastAPI)        :8000
+   └─ Backend (Spring Boot)    :8000
          ├─ Google Places API  ← 서버에서만 호출 (키 보호)
-         ├─ PostgreSQL         ← 자체 리뷰 / 사용자 / 일정
-         └─ Google OAuth 2.0
+         ├─ H2 (file-backed)   ← 사용자 / 자체 리뷰만 저장
+         ├─ Google OAuth 2.0
+         └─ 예산 일정 계산     ← 무상태, 저장하지 않음
 ```
 
 **핵심 원칙**: Places API는 **반드시 백엔드를 경유**합니다.
@@ -49,10 +50,10 @@
 | 영역 | 기술 |
 |---|---|
 | Frontend | React 19, TypeScript, Vite 8, Vitest, Google Maps JavaScript API |
-| Backend | Python 3.11+, FastAPI, SQLAlchemy 2.x, Pydantic v2, Alembic, pytest |
-| DB | PostgreSQL 15+ |
+| Backend | Java 21, Spring Boot, Gradle, Spring Data JPA, JUnit 5, MockMvc |
+| DB | H2 (file-backed, 사용자·자체 리뷰만 저장) |
 | 인증 | Google OAuth 2.0 (HttpOnly 세션 쿠키) |
-| CI/CD | GitHub Actions (gitleaks, 의존성 취약점 스캔) |
+| CI/CD | GitHub Actions (gitleaks, Java test/build, npm audit) |
 | 이슈 관리 | Jira (`SGF-XX`) |
 
 ---
@@ -81,11 +82,14 @@ budgeats-sg/
 │   └── .env.example
 └── backend/
     ├── CLAUDE.md           # 백엔드 전용 지침
-    ├── app/
-    │   ├── core/           # 설정(config), 공통 응답·에러(errors)
-    │   ├── routers/        # 엔드포인트
-    │   └── main.py
-    ├── tests/
+    ├── build.gradle
+    ├── settings.gradle
+    ├── gradle/wrapper/
+    ├── gradlew / gradlew.bat
+    ├── src/
+    │   ├── main/java/      # Spring Boot 애플리케이션
+    │   ├── main/resources/ # application.yml
+    │   └── test/java/      # JUnit 5 · MockMvc 테스트
     └── .env.example
 ```
 
@@ -97,8 +101,7 @@ budgeats-sg/
 ## 사전 준비
 
 - Node.js 20+
-- Python 3.11+
-- PostgreSQL 15+
+- Java 21
 - Google Cloud 프로젝트 (아래 API 활성화)
 
 ### Google Cloud 설정
@@ -127,38 +130,27 @@ cd budgeats-sg
 
 ### 2. 데이터베이스
 
-```bash
-createdb budgeats
-# 또는 Docker
-# docker run -d --name budgeats-db -p 5432:5432 \
-#   -e POSTGRES_USER=budgeats -e POSTGRES_PASSWORD=<비밀번호> \
-#   -e POSTGRES_DB=budgeats postgres:15
-```
+별도 설치 없이 Spring Boot가 file-backed H2를 사용합니다. H2에는 `users`, `reviews`만 저장하며,
+예산 일정은 요청마다 계산해 반환하고 저장하지 않습니다.
 
 ### 3. Backend
 
 ```bash
 cd backend
-cp .env.example .env           # 값 채우기 (DB, Places 키, OAuth, SESSION_SECRET)
-python3.11 -m venv .venv       # ⚠️ python3 가 아니라 python3.11
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
-uvicorn app.main:app --reload --port 8000
+cp .env.example .env
+./gradlew bootRun       # Windows: .\gradlew.bat bootRun
 ```
-
-> **macOS 주의**: `python3`는 시스템 기본 3.9를 가리키는 경우가 많습니다.
-> `python3 -V`로 확인하고 3.11 미만이면 `brew install python@3.11` 후 `python3.11`을 쓰세요.
 
 - API 서버: http://localhost:8000
 - 헬스체크: http://localhost:8000/api/v1/health
-- Swagger UI: http://localhost:8000/docs
+- H2 기본 URL: `jdbc:h2:file:./data/budgeats;DB_CLOSE_ON_EXIT=FALSE`
 
-> DB 스키마와 Alembic 마이그레이션은 아직 없습니다 (BE-B 담당, Day 1).
-> 현재 뼈대는 DB 연결 없이 기동합니다.
+> 현재 Java 골격에는 헬스체크·설정·공통 응답/예외·CORS만 구현되어 있습니다.
+> `users`, `reviews` 엔티티와 인증·Places 연동은 다음 수직 슬라이스에서 추가합니다.
 
 `SESSION_SECRET` 생성:
 ```bash
-python -c "import secrets; print(secrets.token_urlsafe(48))"
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
 ### 4. Frontend
@@ -178,12 +170,12 @@ npm run dev
 
 각 앱의 `.env.example`에 전체 목록과 설명이 있습니다.
 
-| 파일 | 복사 대상 | 주의 |
+| 파일 | 적용 방식 | 주의 |
 |---|---|---|
 | `frontend/.env.example` | `.env.local` | `VITE_` 값은 **브라우저 번들에 그대로 노출**됩니다. 시크릿 금지 |
-| `backend/.env.example` | `.env` | Places 키·OAuth 시크릿·DB 비밀번호가 들어갑니다. 커밋 금지 |
+| `backend/.env.example` | `.env` | Spring Boot가 로컬 `.env`를 읽습니다. Places 키·OAuth 시크릿 커밋 금지 |
 
-**`.env` 파일은 `.gitignore`에 포함되어 있으며, CI에서 gitleaks가 시크릿 유출을 검사합니다.**
+**로컬 환경 파일은 `.gitignore`에 포함되어 있으며, CI에서 gitleaks가 시크릿 유출을 검사합니다.**
 
 ---
 
@@ -201,16 +193,14 @@ PR을 열기 전에 아래를 로컬에서 통과시키면 CI에서 되돌아올
 | `npm test` | Vitest |
 | `npm run build` | 타입 검사 + 프로덕션 빌드 |
 
-**Backend** (`cd backend`, venv 활성화 상태)
+**Backend** (`cd backend`)
 
 | 명령 | 설명 |
 |---|---|
-| `uvicorn app.main:app --reload` | 개발 서버 |
-| `ruff check .` | 린트 (보안 룰 S 포함) |
-| `ruff format .` | 포맷 적용 (CI는 `--check`로 검사) |
-| `bandit -c pyproject.toml -r app -q` | 정적 보안 분석 |
-| `pytest -q` | 테스트 |
-| `pip-audit -r requirements.txt` | 의존성 취약점 스캔 |
+| `./gradlew bootRun` | 개발 서버 (Windows: `.\gradlew.bat bootRun`) |
+| `./gradlew test` | JUnit 5 · MockMvc 테스트 |
+| `./gradlew bootJar` | 실행 JAR 빌드 |
+| `./gradlew check` | 전체 검증 |
 
 ---
 
@@ -248,7 +238,7 @@ SGF-15 fix: 리뷰 중복 작성 검증 누락 수정
 Google Maps Platform 약관과 보안 요구사항에서 나온 항목들입니다. 전문은 [CLAUDE.md 3절](CLAUDE.md)을 보세요.
 
 - ❌ **Places API 응답을 DB에 저장 금지** — 식당명·주소·평점·사진은 매 요청 실시간 조회.
-  저장 가능한 것은 `place_id` 뿐이며, 위경도는 최대 30일 캐싱.
+  자체 리뷰 연결용 `place_id`만 저장하며, 위경도를 포함한 Places 응답은 캐시하지 않음.
 - ❌ **구글 지도 스크래핑 금지** (Selenium/Puppeteer 등) — 약관 위반
 - ❌ **토큰을 localStorage/sessionStorage에 저장 금지** — HttpOnly + Secure 쿠키만 사용
 - ❌ **시크릿 하드코딩 금지** — 환경변수로만 주입
@@ -266,6 +256,7 @@ Google Maps Platform 약관과 보안 요구사항에서 나온 항목들입니�
 | [CLAUDE.md](CLAUDE.md) | 프로젝트 계약서. 데이터 모델·API 스펙·절대 규칙의 **원본** |
 | [docs/SRS.md](docs/SRS.md) | 소프트웨어 요구사항 명세 (기능/비기능 요구사항) |
 | [docs/development-plan.md](docs/development-plan.md) | 5일 스프린트 일정, 역할 분담, CI/CD 및 보안 활동 |
+| [docs/backend-agent-plan.md](docs/backend-agent-plan.md) | 백엔드 에이전트 2대 병렬 분업 — 파일 소유권, 동결된 API 계약 |
 
-> API 스펙을 변경하면 **CLAUDE.md 6절과 Swagger를 함께 갱신**하세요.
+> API 스펙을 변경하면 **CLAUDE.md 6절 API 계약을 함께 갱신**하세요.
 > 프론트/백엔드가 병렬로 개발되므로 이 문서가 유일한 계약서입니다.

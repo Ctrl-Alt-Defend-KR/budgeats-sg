@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: "jdbc:h2:mem:budgeats-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  h2:
+    console:
+      enabled: false
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
+
+budgeats:
+  app-env: local
+  frontend-origin: http://localhost:5173
+  google-places-api-key: ""
+  google-oauth-client-id: ""
+  google-oauth-client-secret: ""
+  google-oauth-redirect-uri: http://localhost:8000/api/v1/auth/google/callback
+  oauth-success-redirect: http://localhost:5173
+  session-secret: ""
+  session-max-age-seconds: 604800
+  cookie-secure: false
+  cookie-same-site: lax
+  price-tier-low-max-sgd: 8
+  price-tier-mid-max-sgd: 15
+  price-actual-min-reviews: 3
+  review-content-max-length: 1000
+  places-nearby-default-radius-m: 1500
+  review-rate-limit-per-hour: 10
