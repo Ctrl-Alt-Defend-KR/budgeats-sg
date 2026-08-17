@@ -4,6 +4,11 @@
 > 1~9절·11절(프로젝트 개요, 절대 규칙, 데이터 모델, API 계약, Git 컨벤션 등)은 루트 파일이 원본이며,
 > Claude Code가 이 디렉토리에서 작업할 때 두 파일을 함께 읽습니다. **여기에 루트 내용을 복사하지 마세요.**
 
+> **프론트엔드는 에이전트 2대가 병렬로 작업합니다.**
+> 파일 소유권·일별 작업·충돌 방지 규칙은 [docs/frontend-agent-plan.md](../docs/frontend-agent-plan.md)에 있습니다.
+> 세션을 시작하면 그 문서의 **3절(파일 소유권)** 과 자기 담당(**4절** Agent A / **5절** Agent B)을 먼저 확인하세요.
+> API 응답 스키마 원본은 [docs/backend-agent-plan.md](../docs/backend-agent-plan.md) **6절**입니다.
+
 ---
 
 ## 역할

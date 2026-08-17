@@ -60,6 +60,37 @@ body {
 }
 
 /*
+ * 오른쪽 슬롯. 자식이 없으면 크기가 0이므로 지도 조작을 막지 않는다.
+ *
+ * ⚠️ 구글 기본 컨트롤과 겹치는 자리다 — 오른쪽 위=전체화면, 오른쪽 아래=줌·로드뷰.
+ * 사이드바와 (+) 버튼이 실제로 들어갈 때 MapView에서 해당 컨트롤을 끄거나
+ * 위치를 옮겨야 한다 (Agent A 담당). Step 0에서는 자리만 잡아 둔다.
+ */
+.overlay-top-right {
+  position: absolute;
+  top: var(--overlay-inset);
+  right: var(--overlay-inset);
+  z-index: 1;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--overlay-gap);
+
+  width: max-content;
+  max-width: calc(100% - var(--overlay-inset) * 2);
+  max-height: calc(100% - var(--overlay-inset) * 2);
+}
+
+.overlay-bottom-right {
+  position: absolute;
+  bottom: var(--overlay-inset);
+  right: var(--overlay-inset);
+  z-index: 1;
+  width: max-content;
+}
+
+/*
  * 지도 위에 얹는 카드의 공통 룩.
  * 컴포넌트 클래스와 함께 붙여 쓴다 — 예: class="overlay-card legend"
  * 새 오버레이(사이드바, 리뷰 폼, 예산 일정표)도 이 클래스를 재사용하세요.
