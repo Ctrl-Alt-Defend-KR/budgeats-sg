@@ -14,7 +14,7 @@ export default function App() {
       <MapView />
 
       <div className="overlay-top-left">
-        <header className="brand">
+        <header className="overlay-card brand">
           <h1 className="brand-title">BudgEats SG</h1>
           <p className="brand-subtitle">싱가포르 유학생을 위한 예산 기반 식당 추천</p>
         </header>

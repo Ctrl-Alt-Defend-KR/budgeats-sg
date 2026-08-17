@@ -1,3 +1,11 @@
+/*
+ * 전역 스타일만 둔다 — 토큰, 리셋, 레이아웃 셸, 오버레이 카드 공통 룩.
+ *
+ * 컴포넌트 스타일은 `components/<Name>.css`에 두고 해당 컴포넌트에서 import한다.
+ * 이 파일은 FE-A/FE-B가 공유하므로, 여기에 기능별 스타일을 쌓으면 충돌 지점이 된다
+ * (frontend/CLAUDE.md 작업 분리 절).
+ */
+
 :root {
   font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   line-height: 1.6;
@@ -28,47 +36,12 @@ body {
   overflow: hidden;
 }
 
-.map {
-  width: 100%;
-  height: 100%;
-}
-
-/* 키 누락 안내. 지도 대신 이 자리를 채운다. */
-.map-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 2rem;
-  text-align: center;
-  background-color: #f1f3f5;
-  color: #343a40;
-}
-
-.map-placeholder-title {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 700;
-}
-
-.map-placeholder p {
-  margin: 0;
-}
-
-.map-placeholder code {
-  padding: 0.1rem 0.3rem;
-  border-radius: 0.25rem;
-  background-color: #dee2e6;
-  font-size: 0.875em;
-}
-
 /*
  * 오버레이 배치 규칙 (Google Maps 약관 및 컨트롤 충돌 회피)
  *
  *   왼쪽 위   ← 브랜드 + 범례 (여기)
- *   오른쪽 위  ← 구글 기본 컨트롤(전체화면). 추천 사이드바 예정
- *   오른쪽 아래 ← 구글 기본 컨트롤(줌·로드뷰). (+) 리뷰 작성 버튼 예정
+ *   오른쪽 위  ← 구글 기본 컨트롤(전체화면). 추천 사이드바 예정 (FE-A)
+ *   오른쪽 아래 ← 구글 기본 컨트롤(줌·로드뷰). (+) 리뷰 작성 버튼 예정 (FE-B)
  *   왼쪽 아래  ← Google attribution(로고). **비워 둘 것** (CLAUDE.md 3.1절)
  */
 .overlay-top-left {
@@ -86,14 +59,19 @@ body {
   max-width: calc(100% - var(--overlay-inset) * 2);
 }
 
-.brand,
-.legend {
+/*
+ * 지도 위에 얹는 카드의 공통 룩.
+ * 컴포넌트 클래스와 함께 붙여 쓴다 — 예: class="overlay-card legend"
+ * 새 오버레이(사이드바, 리뷰 폼, 예산 일정표)도 이 클래스를 재사용하세요.
+ */
+.overlay-card {
   padding: 0.75rem 1rem;
   border-radius: var(--overlay-radius);
   background-color: var(--overlay-bg);
   box-shadow: var(--overlay-shadow);
 }
 
+/* 브랜드 헤더 (App.tsx 레이아웃 셸) */
 .brand-title {
   margin: 0;
   font-size: 1.25rem;
@@ -103,35 +81,4 @@ body {
   margin: 0;
   font-size: 0.8125rem;
   color: #495057;
-}
-
-.legend-title {
-  margin: 0 0 0.5rem;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: #495057;
-}
-
-.legend-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  font-size: 0.875rem;
-}
-
-.legend-list li {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.legend-dot {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
 }

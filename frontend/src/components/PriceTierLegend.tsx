@@ -1,4 +1,5 @@
 import { PRICE_TIERS, PRICE_TIER_COLOR, PRICE_TIER_LABEL } from '../constants/price';
+import './PriceTierLegend.css';
 
 /**
  * 핀 색상 범례.
@@ -8,7 +9,7 @@ import { PRICE_TIERS, PRICE_TIER_COLOR, PRICE_TIER_LABEL } from '../constants/pr
  */
 export default function PriceTierLegend() {
   return (
-    <section className="legend" aria-label="가격 등급 범례">
+    <section className="overlay-card legend" aria-label="가격 등급 범례">
       <h2 className="legend-title">가격 등급</h2>
       <ul className="legend-list">
         {PRICE_TIERS.map((tier) => (
