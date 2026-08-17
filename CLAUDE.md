@@ -42,7 +42,8 @@ Claude Code가 해당 디렉토리에서 작업할 때 이 파일과 함께 자�
    │
    └─ Backend Server (API)
          ├─ Google Places API 호출  ← 서버에서만 호출 (키 보호)
-         ├─ PostgreSQL (자체 리뷰/사용자/일정)
+         ├─ H2 file-backed (사용자/자체 리뷰)
+         ├─ 예산 일정 계산 (무상태, 비저장)
          └─ Google OAuth2 토큰 처리
 ```
 
@@ -52,8 +53,8 @@ Claude Code가 해당 디렉토리에서 작업할 때 이 파일과 함께 자�
 | 영역 | 기술 |
 |---|---|
 | Frontend | React, Google Maps JavaScript API |
-| Backend | Python 3.11+, FastAPI, SQLAlchemy, Pydantic |
-| DB | PostgreSQL |
+| Backend | Java 21, Spring Boot, Gradle, Spring Data JPA |
+| DB | H2 file-backed (사용자·자체 리뷰만 저장) |
 | 인증 | Google OAuth 2.0 |
 | CI/CD | GitHub Actions |
 | 이슈 관리 | Jira |
@@ -65,7 +66,7 @@ Claude Code가 해당 디렉토리에서 작업할 때 이 파일과 함께 자�
 
 ### 3.1 Google Maps Platform 정책
 - **place_id 외의 Places API 응답 데이터를 DB에 저장하지 마세요.** 식당명, 주소, 평점, 사진, 영업시간은 저장 금지이며 매 요청마다 실시간 조회합니다.
-- 위경도(lat/lng)는 최대 30일까지만 캐싱 가능합니다.
+- 이번 MVP에서는 위경도(lat/lng)를 포함한 Places 응답을 캐시하지 않습니다.
 - **place_id는 영구 저장 가능**합니다. 자체 리뷰는 place_id를 외래키로 연결합니다.
 - **스크래핑 금지**: Selenium, Puppeteer 등으로 구글 지도 페이지를 크롤링하는 코드를 절대 작성하지 마세요. 약관 위반입니다.
 - 지도 및 데이터 표시 시 Google attribution(로고)을 반드시 표시합니다.
@@ -104,25 +105,19 @@ Claude Code가 해당 디렉토리에서 작업할 때 이 파일과 함께 자�
 | rating | int | 1~5, 필수 |
 | price_per_person | decimal | SGD, 필수 |
 | content | text | 최대 1000자, 필수 |
-| taste_tags | array/jsonb | 한국인 입맛 맞음, 안 짜요, 향신료 약함, 매운맛 있음 |
-| student_tags | array/jsonb | 가성비, 양 많음, 혼밥 가능, 포장 가능, 카드 결제 가능 |
-| visit_type | enum | 혼밥/친구/단체/기타 |
+| taste_tags | text (JSON 배열) | 한국인 입맛 맞음, 안 짜요, 향신료 약함, 매운맛 있음 |
+| student_tags | text (JSON 배열) | 가성비, 양 많음, 혼밥 가능, 포장 가능, 카드 결제 가능 |
+| visit_type | string (enum) | 혼밥/친구/단체/기타 |
 | revisit | boolean | 재방문 의사 |
 | is_anonymous | boolean | 익명 표시 여부 |
 | created_at / updated_at | timestamp | |
 
 **제약**: `UNIQUE(user_id, place_id)` — 동일 사용자는 동일 식당에 리뷰 1건만 작성 가능 (수정은 허용)
 
-### budget_plans
-| 컬럼 | 타입 | 비고 |
-|---|---|---|
-| id | PK | |
-| user_id | FK → users.id | |
-| total_budget | decimal | SGD |
-| days | int | |
-| meals_per_day | int | |
-| plan_data | jsonb | 생성된 일정 (place_id 리스트) |
-| created_at | timestamp | |
+### 예산 일정 (비저장)
+
+`POST /budget-plans`는 요청값으로 일정을 계산해 즉시 반환하는 무상태 API입니다.
+`budget_plans` 테이블·엔티티·리포지토리를 만들거나 생성 결과를 H2에 저장하지 않습니다.
 
 ---
 
@@ -192,7 +187,7 @@ Claude Code가 해당 디렉토리에서 작업할 때 이 파일과 함께 자�
 { "success": false, "error": { "code": "INVALID_INPUT", "message": "..." } }
 ```
 
-> API 스펙 변경 시 **반드시 이 파일과 Swagger 문서를 함께 갱신**하세요. 프론트/백엔드가 다른 세션에서 개발되므로 이 파일이 유일한 계약서입니다.
+> API 스펙 변경 시 **반드시 이 파일의 API 계약을 함께 갱신**하세요. 프론트/백엔드가 다른 세션에서 개발되므로 이 파일이 유일한 계약서입니다.
 
 ---
 
@@ -249,7 +244,7 @@ SGF-15 fix: 리뷰 중복 작성 검증 누락 수정
 | 앱 | 지침 파일 | 요약 |
 |---|---|---|
 | Frontend | [frontend/CLAUDE.md](frontend/CLAUDE.md) | React + Vite. Places API 직접 호출 금지, `src/api` 경유, 토큰 localStorage 금지, 지도 이동 디바운스 |
-| Backend | [backend/CLAUDE.md](backend/CLAUDE.md) | FastAPI. Places 호출은 `app/services/places`에 격리, Pydantic 입력 검증, 작성자 검증 의존성 필수 |
+| Backend | [backend/CLAUDE.md](backend/CLAUDE.md) | Spring Boot. Places 호출은 `place` 패키지에 격리, Bean Validation 입력 검증, 작성자 검증 필수 |
 
 > 모노레포지만 프론트/백엔드는 **별도 서버로 배포**됩니다 (2절). 두 앱 사이에 코드를 직접 import하지 마세요.
 > 유일한 연결 지점은 6절 API 계약입니다.
@@ -264,4 +259,4 @@ SGF-15 fix: 리뷰 중복 작성 검증 누락 수정
 - [ ] 데이터 수집 대상 지역 범위 (어느 대학가 우선)
 - [ ] 태그 항목 최종 확정
 - [ ] 이미지 업로드 저장소 및 용량 정책
-- [x] ~~백엔드 프레임워크 확정~~ → **FastAPI (Python)** 로 확정 (2026-08-16)
+- [x] ~~백엔드 프레임워크 확정~~ → **Java 21 + Spring Boot + Gradle** 로 변경 확정 (2026-08-17)

@@ -62,7 +62,7 @@
    │
    ├─ Frontend (React)      → Maps JavaScript API (지도 렌더링 전용)
    │
-   └─ Backend (FastAPI)     → Places API / PostgreSQL / OAuth 2.0
+   └─ Backend (Spring Boot) → Places API / H2 / OAuth 2.0
 ```
 
 Places API 호출은 **전부 백엔드가 대행**한다. 프론트엔드에 노출되는 유일한 구글 키는
@@ -83,7 +83,7 @@ HTTP 리퍼러 제한이 걸린 지도 렌더링용 키이며, 이 키에는 Pla
 | ID | 제약 | 근거 |
 |---|---|---|
 | CON-1 | `place_id` 외 Places API 응답 데이터를 DB에 저장할 수 없다 | Google Maps Platform 약관 |
-| CON-2 | 위경도(lat/lng)는 최대 30일까지만 캐싱 가능 | Google Maps Platform 약관 |
+| CON-2 | 이번 MVP에서는 위경도(lat/lng)를 포함한 Places 응답을 캐시하지 않는다 | 저장 범위 최소화 |
 | CON-3 | 구글 지도 페이지 스크래핑 금지 | Google Maps Platform 약관 |
 | CON-4 | 구글 리뷰 텍스트를 사용·저장하지 않는다 | API가 5건만 제공, 저장 불가 |
 | CON-5 | 지도 및 구글 데이터 표시 시 Google attribution 필수 | Google Maps Platform 약관 |
@@ -197,8 +197,8 @@ HTTP 리퍼러 제한이 걸린 지도 렌더링용 키이며, 이 키에는 Pla
 | FR-506 | 개별 항목을 같은 가격 등급의 다른 식당으로 교체할 수 있다 | M |
 | FR-507 | 조건에 맞는 식당이 부족하면 사용자에게 사유를 안내한다 | M |
 
-> 일정 **저장/공유는 MVP 범위 밖**이다. `budget_plans` 테이블은 스키마만 준비하고,
-> MVP에서는 생성 결과를 화면에만 표시한다.
+> 일정 **저장/공유는 MVP 범위 밖**이다. `POST /budget-plans`는 무상태로 계산 결과만 반환하며,
+> `budget_plans` 테이블·엔티티를 만들지 않는다.
 
 ---
 
@@ -217,7 +217,7 @@ HTTP 리퍼러 제한이 걸린 지도 렌더링용 키이며, 이 키에는 Pla
 | Google Maps JavaScript API | 지도 렌더링, 마커 표시 | Frontend |
 | Google Places API (New) | 주변 검색, 장소 검색, 장소 상세 | **Backend 전용** |
 | Google OAuth 2.0 | 사용자 인증 | Backend |
-| PostgreSQL | 사용자·리뷰·일정 영속화 | Backend |
+| H2 (file-backed) | 사용자·자체 리뷰 영속화 | Backend |
 
 ### 4.3 API 인터페이스
 
@@ -240,7 +240,7 @@ Base URL `/api/v1`. 전체 엔드포인트 목록과 응답 형식은 [CLAUDE.md
 |---|---|---|
 | NFR-S1 | API 키·시크릿·DB 비밀번호를 코드에 하드코딩하지 않는다 | CI gitleaks 스캔 (검출 시 빌드 실패) |
 | NFR-S2 | OAuth 토큰은 HttpOnly + Secure 쿠키에만 저장한다 (localStorage 금지) | 코드 리뷰 + 브라우저 검사 |
-| NFR-S3 | 모든 사용자 입력을 서버에서 검증·sanitize한다 (XSS 방지) | Pydantic 스키마 + 수동 페이로드 테스트 |
+| NFR-S3 | 모든 사용자 입력을 서버에서 검증·sanitize한다 (XSS 방지) | Bean Validation DTO + 수동 페이로드 테스트 |
 | NFR-S4 | 리뷰 수정/삭제 시 서버에서 작성자를 검증한다 (IDOR 방지) | 타 사용자 리뷰 ID로 직접 호출 → 403 확인 |
 | NFR-S5 | 모든 통신에 HTTPS를 강제한다 | 배포 설정 확인 |
 | NFR-S6 | 리뷰 작성 API에 사용자별 rate limiting을 적용한다 | 반복 호출 테스트 |
@@ -272,7 +272,7 @@ Base URL `/api/v1`. 전체 엔드포인트 목록과 응답 형식은 [CLAUDE.md
 | ID | 요구사항 |
 |---|---|
 | NFR-L1 | Places API 응답 중 `place_id` 외 필드를 DB에 저장하지 않는다 |
-| NFR-L2 | 위경도 캐시는 30일 이내에 만료된다 |
+| NFR-L2 | 위경도를 포함한 Places 응답을 캐시하지 않는다 |
 | NFR-L3 | 지도 및 구글 데이터 표시 화면에 Google attribution을 노출한다 |
 | NFR-L4 | 스크래핑 도구를 사용하지 않는다 |
 | NFR-L5 | 구글 리뷰 텍스트를 사용·저장·표시하지 않는다 |
@@ -292,21 +292,21 @@ Base URL `/api/v1`. 전체 엔드포인트 목록과 응답 형식은 [CLAUDE.md
 |---|---|
 | NFR-M1 | 가격 경계값·N·가중치 등을 상수/설정으로 분리한다 (매직 넘버 금지) |
 | NFR-M2 | 주석·커밋 메시지는 한국어, 코드 식별자는 영어로 작성한다 |
-| NFR-M3 | API 스펙 변경 시 CLAUDE.md 6절과 Swagger를 함께 갱신한다 |
+| NFR-M3 | API 스펙 변경 시 CLAUDE.md 6절 API 계약을 함께 갱신한다 |
 | NFR-M4 | 5일 일정을 고려해 과도한 추상화를 피한다 |
 
 ---
 
 ## 6. 데이터 요구사항
 
-테이블 정의(`users`, `reviews`, `budget_plans`)의 원본은 [CLAUDE.md 4절](../CLAUDE.md)이다.
+테이블 정의(`users`, `reviews`)의 원본은 [CLAUDE.md 4절](../CLAUDE.md)이다. 예산 일정은 저장하지 않는다.
 
 ### 6.1 저장 정책
 
 | 데이터 | 저장 | 근거 |
 |---|---|---|
 | `place_id` | ✅ 영구 저장 | 약관상 허용. 자체 리뷰의 연결 키 |
-| 위경도 (lat/lng) | ⚠️ 최대 30일 캐싱 | 약관 제한 |
+| 위경도 (lat/lng) | ❌ 캐싱 안 함 | Places 실시간 조회 원칙 |
 | 식당명·주소·평점·사진·영업시간 | ❌ 저장 금지 | 약관 위반. 매 요청 실시간 조회 |
 | 구글 리뷰 텍스트 | ❌ 사용 안 함 | 약관 및 데이터 한계 |
 | 자체 리뷰 전체 | ✅ 영구 저장 | 자체 생성 데이터 |
@@ -358,7 +358,7 @@ Base URL `/api/v1`. 전체 엔드포인트 목록과 응답 형식은 [CLAUDE.md
 
 | 항목 | 결정 | 일자 |
 |---|---|---|
-| 백엔드 프레임워크 | FastAPI (Python) | 2026-08-16 |
+| 백엔드 프레임워크 | Java 21 + Spring Boot + Gradle | 2026-08-17 |
 
 ---
 

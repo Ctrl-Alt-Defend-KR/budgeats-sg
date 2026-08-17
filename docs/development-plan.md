@@ -40,7 +40,7 @@
 | **FE-A** | 지도 · 핀 · 사이드바 | Map 컴포넌트, 핀 색상 로직, 추천 리스트 |
 | **FE-B** | 인증 UI · 리뷰 · 예산 | 로그인 플로우, 리뷰 폼, 예산 일정 화면 |
 | **BE-A** | 인증 · Places 연동 | OAuth 2.0, `/auth/*`, `/places/*`, Places 서비스 격리 |
-| **BE-B** | DB · 리뷰 · 예산 | 스키마·마이그레이션, `/reviews/*`, `/budget-plans` |
+| **BE-B** | DB · 리뷰 · 예산 | H2 스키마, `/reviews/*`, 무상태 `/budget-plans` |
 
 **겸임 역할** (별도 인원 없이 나눠 맡습니다)
 
@@ -67,7 +67,7 @@
 | 전원 | API 계약 리뷰 및 CLAUDE.md 6절 확정 |
 | BE-A | Google Cloud 프로젝트 설정, API 키 2개 분리 발급, OAuth 클라이언트 생성 |
 | BE-A | **GitHub Actions 파이프라인 구축 (gitleaks 포함)** — 최우선 |
-| BE-B | PostgreSQL 스키마 설계 + Alembic 초기 마이그레이션 |
+| BE-B | file-backed H2의 `users`, `reviews` 스키마 설계 |
 | FE-A | React + Vite 프로젝트 세팅, 지도 렌더링 + Google attribution |
 | FE-B | 라우팅·레이아웃 골격, API 레이어(`src/api`) 스켈레톤 |
 
@@ -90,7 +90,7 @@
 | BE-A | Google OAuth 2.0 전 과정 (`/auth/google`, `/callback`, `/me`, `/logout`) |
 | BE-A | HttpOnly + Secure 쿠키 세션 구현 |
 | BE-A | Places 서비스 격리 계층 + `GET /places/nearby` (**필드 마스크 최소화**) |
-| BE-B | 리뷰 모델·Pydantic 스키마, `UNIQUE(user_id, place_id)` 제약 |
+| BE-B | 리뷰 JPA 모델·Bean Validation DTO, `UNIQUE(user_id, place_id)` 제약 |
 | BE-B | 공통 에러 핸들러 (CLAUDE.md 6절 응답 형식) |
 | FE-A | 핀 렌더링 + 가격 등급 색상 매핑, 지도 이동 **디바운스** |
 | FE-B | 로그인/로그아웃 UI, 인증 상태 관리 (`/auth/me` 기반) |
@@ -135,8 +135,8 @@
 
 | 담당 | 작업 |
 |---|---|
-| BE-B | `POST /budget-plans` — 끼니당 예산 산출, 등급 매칭, 카테고리 연속 회피 |
-| BE-A | Swagger 문서 정리, CORS·쿠키 운영 설정 점검 |
+| BE-B | 무상태 `POST /budget-plans` — 끼니당 예산 산출, 등급 매칭, 카테고리 연속 회피 |
+| BE-A | CLAUDE.md 6절 API 계약 정리, CORS·쿠키 운영 설정 점검 |
 | FE-B | 예산 입력 폼, 일정표 출력, 개별 항목 교체 |
 | FE-A | 로딩·에러·빈 상태 처리, 모바일 반응형 |
 | 전원 | 오후: **통합 테스트** — 전 시나리오 수동 검증 |
@@ -182,10 +182,10 @@
 ```
 PR 생성
   ├─ gitleaks           시크릿 하드코딩 검출        → 실패 시 즉시 중단
-  ├─ 의존성 취약점 스캔    pip-audit / npm audit
-  ├─ 정적 분석           ruff + bandit (BE) / eslint (FE)
-  ├─ 단위 테스트         pytest (BE) / vitest (FE)
-  └─ 빌드 검증           uvicorn 기동 / vite build
+  ├─ 의존성 취약점 스캔    npm audit (FE) / BE 스캐너는 배포 전 추가
+  ├─ 품질 검증           ./gradlew check (BE) / eslint (FE)
+  ├─ 단위 테스트         JUnit 5·MockMvc (BE) / vitest (FE)
+  └─ 빌드 검증           ./gradlew bootJar / vite build
 ```
 
 **Day 1에 gitleaks부터 붙입니다.** 시크릿은 한 번 커밋되면 히스토리에서 지우기 어렵기 때문에,
@@ -216,7 +216,7 @@ PR 생성
 - [ ] 리뷰 수정/삭제에서 서버가 작성자를 검증한다 (타인 리뷰 → 403)
 
 **입력 / 출력**
-- [ ] 모든 엔드포인트에 Pydantic 스키마가 적용되었다
+- [ ] 모든 엔드포인트에 DTO와 Bean Validation이 적용되었다
 - [ ] 리뷰 본문에 HTML sanitization이 적용되었다 (XSS)
 - [ ] SQL이 ORM/파라미터 바인딩으로만 작성되었다
 - [ ] 에러 응답에 스택 트레이스·내부 경로가 노출되지 않는다
@@ -229,7 +229,7 @@ PR 생성
 
 **정책 준수**
 - [ ] DB에 `place_id` 외 구글 데이터 컬럼이 없다
-- [ ] 위경도 캐시 TTL이 30일 이하다
+- [ ] 위경도를 포함한 Places 응답을 캐시하지 않는다
 - [ ] 지도에 Google attribution이 표시된다
 - [ ] 스크래핑 코드가 없다
 
@@ -276,7 +276,7 @@ SGF-15 fix: 리뷰 중복 작성 검증 누락 수정
 - [ ] 요구사항 ID(FR-XXX)의 동작이 구현되었다
 - [ ] CI가 통과했다
 - [ ] 보안 체크리스트 해당 항목을 확인했다
-- [ ] API 변경 시 CLAUDE.md 6절과 Swagger를 갱신했다
+- [ ] API 변경 시 CLAUDE.md 6절 API 계약을 갱신했다
 - [ ] 리뷰어 1명이 승인했다
 - [ ] `develop`에 머지되어 통합 환경에서 동작한다
 

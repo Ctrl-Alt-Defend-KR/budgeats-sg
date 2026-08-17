@@ -1,0 +1,48 @@
+server:
+  port: ${PORT:8000}
+
+spring:
+  application:
+    name: budgeats-sg-backend
+  config:
+    import: "optional:file:.env[.properties]"
+  datasource:
+    url: "${DATABASE_URL:jdbc:h2:file:./data/budgeats;DB_CLOSE_ON_EXIT=FALSE}"
+    username: ${DB_USERNAME:sa}
+    password: "${DB_PASSWORD:}"
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  h2:
+    console:
+      enabled: false
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+
+budgeats:
+  app-env: ${APP_ENV:local}
+  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  google-places-api-key: "${GOOGLE_PLACES_API_KEY:}"
+  google-oauth-client-id: "${GOOGLE_OAUTH_CLIENT_ID:}"
+  google-oauth-client-secret: "${GOOGLE_OAUTH_CLIENT_SECRET:}"
+  google-oauth-redirect-uri: ${GOOGLE_OAUTH_REDIRECT_URI:http://localhost:8000/api/v1/auth/google/callback}
+  oauth-success-redirect: ${OAUTH_SUCCESS_REDIRECT:http://localhost:5173}
+  session-secret: "${SESSION_SECRET:}"
+  session-max-age-seconds: ${SESSION_MAX_AGE_SECONDS:604800}
+  cookie-secure: ${COOKIE_SECURE:false}
+  cookie-same-site: ${COOKIE_SAMESITE:lax}
+  price-tier-low-max-sgd: ${PRICE_TIER_LOW_MAX_SGD:8}
+  price-tier-mid-max-sgd: ${PRICE_TIER_MID_MAX_SGD:15}
+  price-actual-min-reviews: ${PRICE_ACTUAL_MIN_REVIEWS:3}
+  review-content-max-length: ${REVIEW_CONTENT_MAX_LENGTH:1000}
+  places-nearby-default-radius-m: ${PLACES_NEARBY_DEFAULT_RADIUS_M:1500}
+  review-rate-limit-per-hour: ${REVIEW_RATE_LIMIT_PER_HOUR:10}
