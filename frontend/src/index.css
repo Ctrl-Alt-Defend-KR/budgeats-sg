@@ -1,6 +1,13 @@
 :root {
   font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   line-height: 1.6;
+
+  /* 오버레이 카드 공통 값 */
+  --overlay-bg: rgba(255, 255, 255, 0.94);
+  --overlay-radius: 0.625rem;
+  --overlay-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --overlay-gap: 0.75rem;
+  --overlay-inset: 1rem;
 }
 
 * {
@@ -11,26 +18,120 @@ body {
   margin: 0;
 }
 
+/*
+ * 지도가 뷰포트를 채우고 오버레이가 그 위에 얹힌다.
+ * dvh는 모바일 브라우저 주소창 높이 변화를 반영한다.
+ */
 .app {
-  padding: 2rem;
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
 }
 
-.tier-list {
-  list-style: none;
-  padding: 0;
+.map {
+  width: 100%;
+  height: 100%;
+}
+
+/* 키 누락 안내. 지도 대신 이 자리를 채운다. */
+.map-placeholder {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+  background-color: #f1f3f5;
+  color: #343a40;
 }
 
-.tier-list li {
+.map-placeholder-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.map-placeholder p {
+  margin: 0;
+}
+
+.map-placeholder code {
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  background-color: #dee2e6;
+  font-size: 0.875em;
+}
+
+/*
+ * 오버레이 배치 규칙 (Google Maps 약관 및 컨트롤 충돌 회피)
+ *
+ *   왼쪽 위   ← 브랜드 + 범례 (여기)
+ *   오른쪽 위  ← 구글 기본 컨트롤(전체화면). 추천 사이드바 예정
+ *   오른쪽 아래 ← 구글 기본 컨트롤(줌·로드뷰). (+) 리뷰 작성 버튼 예정
+ *   왼쪽 아래  ← Google attribution(로고). **비워 둘 것** (CLAUDE.md 3.1절)
+ */
+.overlay-top-left {
+  position: absolute;
+  top: var(--overlay-inset);
+  left: var(--overlay-inset);
+  z-index: 1;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--overlay-gap);
+
+  /* 콘텐츠 폭만 차지하게 해서 지도 드래그를 가리는 면적을 최소화한다. */
+  width: max-content;
+  max-width: calc(100% - var(--overlay-inset) * 2);
+}
+
+.brand,
+.legend {
+  padding: 0.75rem 1rem;
+  border-radius: var(--overlay-radius);
+  background-color: var(--overlay-bg);
+  box-shadow: var(--overlay-shadow);
+}
+
+.brand-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.brand-subtitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #495057;
+}
+
+.legend-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #495057;
+}
+
+.legend-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.legend-list li {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.tier-dot {
+.legend-dot {
   width: 0.75rem;
   height: 0.75rem;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
