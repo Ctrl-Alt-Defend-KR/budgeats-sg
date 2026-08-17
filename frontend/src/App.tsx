@@ -1,5 +1,8 @@
+import BudgetPlanButton from './components/BudgetPlanButton';
+import LoginButton from './components/LoginButton';
 import MapView from './components/MapView';
 import PriceTierLegend from './components/PriceTierLegend';
+import ReviewFab from './components/ReviewFab';
 
 /**
  * 화면 골격.
@@ -27,13 +30,15 @@ export default function App() {
 
       {/* 슬롯 — 로그인 버튼(B), 추천 사이드바(A) */}
       <div className="overlay-top-right">
-        {/* B: <LoginButton /> */}
+        <LoginButton />
         {/* A: <Sidebar /> */}
       </div>
 
-      {/* 슬롯 — (+) 리뷰 작성 버튼(B) */}
+      {/* 슬롯 — (+) 리뷰 작성 버튼(B) + 예산 일정 진입 버튼(B, Day 3 추가 — 전용 슬롯이
+          없어 같은 영역에 얹었다. docs/frontend-agent-plan.md 3절에 근거 기록) */}
       <div className="overlay-bottom-right">
-        {/* B: <ReviewFab /> */}
+        <BudgetPlanButton />
+        <ReviewFab />
       </div>
 
       {/* 슬롯 — 모달(B): 장소 검색 팝업, 리뷰 폼, 예산 일정.

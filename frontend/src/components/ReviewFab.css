@@ -1,0 +1,131 @@
+/* ReviewFab 전용 스타일. 로그인 유도/저장 알림 카드는 전역 .overlay-card를 함께 쓴다. */
+
+.review-fab {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  border: none;
+  background-color: #1971c2;
+  color: #fff;
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--overlay-shadow);
+}
+
+.review-fab:hover {
+  background-color: #1864ab;
+}
+
+.review-fab-login-prompt {
+  position: absolute;
+  right: 0;
+  bottom: calc(3.25rem + var(--overlay-gap));
+  width: max-content;
+  max-width: 16rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.review-fab-login-prompt p {
+  margin: 0;
+}
+
+.review-fab-login-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.review-fab-login-actions button {
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.review-fab-login-actions button:first-child {
+  background-color: #e9ecef;
+}
+
+.review-fab-login-actions button:last-child {
+  background-color: #1971c2;
+  color: #fff;
+}
+
+.review-fab-saved-notice {
+  position: absolute;
+  right: 0;
+  bottom: calc(3.25rem + var(--overlay-gap));
+  width: max-content;
+  max-width: 14rem;
+  font-size: 0.8125rem;
+  color: #2b8a3e;
+}
+
+/*
+ * 장소 선택 후 뜨는 리뷰 목록 패널 (ReviewList + "리뷰 작성하기").
+ *
+ * position: fixed를 쓴다 — 이 엘리먼트는 `.overlay-bottom-right`(position: absolute,
+ * 콘텐츠 크기만큼만 차지) 안에서 렌더링되므로, absolute + inset:0을 쓰면 뷰포트가 아니라
+ * 그 작은 부모 박스 안에 눌려서 렌더링된다. fixed는 DOM 위치와 무관하게 뷰포트 기준으로
+ * 앵커링되므로 이 문제가 없다 (조상 중 transform/filter가 없어 안전하다).
+ */
+.place-review-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.35);
+}
+
+.place-review-panel {
+  width: min(24rem, calc(100% - 2rem));
+  max-height: min(32rem, calc(100% - 2rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: hidden;
+}
+
+.place-review-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.place-review-panel-header h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.place-review-panel-address {
+  margin: 0.125rem 0 0;
+  font-size: 0.75rem;
+  color: #868e96;
+}
+
+.place-review-panel-header button {
+  border: none;
+  background: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #495057;
+}
+
+.place-review-panel-write {
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.625rem;
+  background-color: #1971c2;
+  color: #fff;
+  font-size: 0.875rem;
+  cursor: pointer;
+}

@@ -1,0 +1,59 @@
+/* BudgetPlanButton 전용 스타일. */
+
+.budget-plan-trigger {
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  background-color: var(--overlay-bg);
+  box-shadow: var(--overlay-shadow);
+}
+
+.budget-plan-trigger:hover {
+  background-color: #f1f3f5;
+}
+
+/*
+ * position: fixed를 쓴다 — 이 버튼은 `.overlay-bottom-right`(position: absolute,
+ * 콘텐츠 크기만큼만 차지) 안에서 렌더링된다. absolute + inset:0이면 뷰포트가 아니라
+ * 그 작은 부모 박스 안에 눌려서 렌더링된다.
+ */
+.budget-plan-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.35);
+}
+
+.budget-plan-panel {
+  width: min(28rem, calc(100% - 2rem));
+  max-height: min(34rem, calc(100% - 2rem));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.budget-plan-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.budget-plan-panel-header h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.budget-plan-panel-header button {
+  border: none;
+  background: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #495057;
+}
