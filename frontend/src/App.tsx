@@ -1,8 +1,12 @@
+import { useEffect, useRef, useState } from 'react';
 import BudgetPlanButton from './components/BudgetPlanButton';
 import LoginButton from './components/LoginButton';
-import MapView from './components/MapView';
+import MapView, { type MapViewHandle } from './components/MapView';
 import PriceTierLegend from './components/PriceTierLegend';
 import ReviewFab from './components/ReviewFab';
+import Sidebar from './components/Sidebar';
+import { MAP_DEFAULTS } from './constants/map';
+import { type MapCenter, useNearbyPlaces } from './hooks/useNearbyPlaces';
 
 /**
  * 화면 골격.
@@ -12,12 +16,28 @@ import ReviewFab from './components/ReviewFab';
  * 각 에이전트는 아래 슬롯 안에 자기 컴포넌트를 꽂기만 하고, 로직을 여기에 쓰지 않는다.
  * 구조를 바꿔야 하면 8.2절 핸드오프 절차를 따른다.
  *
+ * **예외 — `useNearbyPlaces` 훅 호출 하나만 여기 둔다.** 지도(MapView)와 사이드바(Sidebar)가
+ * 같은 `places` 데이터를 공유해야 하는데, 둘은 형제 컴포넌트라 공통 조상인 이 파일에서
+ * 데이터를 한 번만 가져와 내려줘야 중복 조회(=과금)를 피한다. 리뷰·예산 등 B 소유
+ * 비즈니스 로직은 여기 두지 않는다 — 그건 계속 각자 컴포넌트/훅 안에 있어야 한다.
+ *
  * 왼쪽 아래는 Google attribution 영역이므로 슬롯을 두지 않는다 (CLAUDE.md 3.1절).
  */
 export default function App() {
+  const [center, setCenter] = useState<MapCenter>(MAP_DEFAULTS.center);
+  const { places, loading, error, retry } = useNearbyPlaces(center);
+  const mapRef = useRef<MapViewHandle>(null);
+
+  useEffect(() => {
+    if (error) {
+      // 사용자에게는 Sidebar가 에러·재시도 UI를 보여준다. 여기서는 원인 추적용 로그만 남긴다.
+      console.error('[App] 주변 식당 조회 실패', error);
+    }
+  }, [error]);
+
   return (
     <div className="app">
-      <MapView />
+      <MapView ref={mapRef} center={center} places={places} onCenterChanged={setCenter} />
 
       <div className="overlay-top-left">
         <header className="overlay-card brand">
@@ -28,10 +48,15 @@ export default function App() {
         <PriceTierLegend />
       </div>
 
-      {/* 슬롯 — 로그인 버튼(B), 추천 사이드바(A) */}
       <div className="overlay-top-right">
         <LoginButton />
-        {/* A: <Sidebar /> */}
+        <Sidebar
+          places={places}
+          loading={loading}
+          error={error}
+          onSelectPlace={(placeId) => mapRef.current?.focusPlace(placeId)}
+          onRetry={retry}
+        />
       </div>
 
       {/* 슬롯 — (+) 리뷰 작성 버튼(B) + 예산 일정 진입 버튼(B, Day 3 추가 — 전용 슬롯이
