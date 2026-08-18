@@ -27,9 +27,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -90,6 +92,28 @@ class BudgetPlanTest {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
         verifyNoInteractions(placesClient);
+    }
+
+    @Test
+    void endpointReturnsEmptyPlanWithNoticeWhenNearbyLookupFails() throws Exception {
+        when(placesClient.searchNearby(anyDouble(), anyDouble(), anyInt()))
+                .thenThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Places unavailable"));
+
+        mockMvc.perform(post("/api/v1/budget-plans")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"totalBudgetSgd":100,"days":2,"mealsPerDay":2,
+                                 "lat":1.2966,"lng":103.7764}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.perMealBudgetSgd").value(25.0))
+                .andExpect(jsonPath("$.data.targetPriceTier").value("high"))
+                .andExpect(jsonPath("$.data.days[0].meals[0].place").doesNotExist())
+                .andExpect(jsonPath("$.data.days[1].meals[1].place").doesNotExist())
+                .andExpect(jsonPath("$.data.notice")
+                        .value("조건에 맞는 식당이 부족해 일부 끼니를 비워 두었습니다."));
+        verify(placesClient).searchNearby(anyDouble(), anyDouble(), anyInt());
     }
 
     @Test
