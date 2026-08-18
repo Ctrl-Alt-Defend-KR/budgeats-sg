@@ -107,7 +107,9 @@ export type PlaceGradePatch = Pick<
 | `components/PlaceSearchDialog.*` | **B** | `/places/search` — Autocomplete 위젯 금지 |
 | `components/ReviewForm.*`, `ReviewList.*` | **B** | |
 | `components/BudgetPlanForm.*`, `BudgetPlanTable.*` | **B** | |
+| `components/BudgetPlanButton.*` | **B** | 예산 일정 진입 버튼. Step 0 슬롯 표에 전용 자리가 없어 Day 3에 추가, `App.tsx`/`index.css`의 `overlay-bottom-right`에 `ReviewFab`과 함께 배치 (핸드오프 기록) |
 | `api/auth.ts`, `api/reviews.ts`, `api/budgetPlans.ts` | **B** | |
+| `api/placeSearch.ts` | **B** | `/places/search`. `api/places.ts`(A)는 `/places/nearby` 전용이라 별도 파일로 분리 (Day 1 작업 중 누락 발견, FE-B가 문서 관리자 권한으로 추가) |
 | `hooks/useAuth.ts` | **B** | A는 쓰지 않습니다 |
 | `constants/review.ts` | **B** | 태그 항목 (CLAUDE.md 11절 확정 후) |
 | `api/client.ts`, `api/types.ts`, `constants/price.ts` | **동결** | 양쪽 읽기 전용 |

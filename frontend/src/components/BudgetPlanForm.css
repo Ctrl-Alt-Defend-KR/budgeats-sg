@@ -1,0 +1,48 @@
+/* BudgetPlanForm 전용 스타일. 카드 룩은 전역 .overlay-card를 함께 쓴다. */
+
+.budget-plan-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.budget-plan-form h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.budget-plan-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: #343a40;
+}
+
+.budget-plan-form input {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.budget-plan-form-error {
+  margin: 0;
+  color: #c92a2a;
+  font-size: 0.8125rem;
+}
+
+.budget-plan-form button[type='submit'] {
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.625rem;
+  background-color: #1971c2;
+  color: #fff;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.budget-plan-form button[type='submit']:disabled {
+  background-color: #adb5bd;
+  cursor: not-allowed;
+}

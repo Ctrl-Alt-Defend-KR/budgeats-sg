@@ -1,0 +1,136 @@
+/* ReviewForm 전용 스타일. 카드 룩은 전역 .overlay-card를 함께 쓴다. */
+
+/*
+ * position: fixed를 쓴다 — 이 컴포넌트는 ReviewFab을 거쳐 `.overlay-bottom-right`
+ * (position: absolute, 콘텐츠 크기만큼만 차지) 안에서 렌더링된다. absolute + inset:0이면
+ * 뷰포트가 아니라 그 작은 부모 박스 안에 눌려서 렌더링된다.
+ */
+.review-form-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.35);
+}
+
+.review-form {
+  width: min(26rem, calc(100% - 2rem));
+  max-height: min(38rem, calc(100% - 2rem));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.review-form-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.review-form-header h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.review-form-address {
+  margin: 0.125rem 0 0;
+  font-size: 0.75rem;
+  color: #868e96;
+}
+
+.review-form-header button {
+  border: none;
+  background: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #495057;
+}
+
+.review-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: #343a40;
+}
+
+.review-form select,
+.review-form input[type='number'],
+.review-form textarea {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+}
+
+.review-form textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.review-form fieldset {
+  border: 1px solid #e9ecef;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.625rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+}
+
+.review-form fieldset legend {
+  font-size: 0.75rem;
+  color: #868e96;
+  padding: 0 0.25rem;
+}
+
+.review-form-tag {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.375rem !important;
+  font-size: 0.8125rem;
+}
+
+.review-form-checkbox {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.5rem !important;
+}
+
+.review-form-char-count {
+  align-self: flex-end;
+  font-size: 0.6875rem;
+  color: #adb5bd;
+}
+
+.review-form-notice {
+  margin: 0;
+  color: #1971c2;
+  font-size: 0.8125rem;
+}
+
+.review-form-error {
+  margin: 0;
+  color: #c92a2a;
+  font-size: 0.8125rem;
+}
+
+.review-form > button[type='submit'] {
+  padding: 0.625rem;
+  border: none;
+  border-radius: 0.375rem;
+  background-color: #1971c2;
+  color: #fff;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.review-form > button[type='submit']:disabled {
+  background-color: #adb5bd;
+  cursor: not-allowed;
+}

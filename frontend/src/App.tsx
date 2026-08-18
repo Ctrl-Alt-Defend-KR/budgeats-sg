@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import BudgetPlanButton from './components/BudgetPlanButton';
+import LoginButton from './components/LoginButton';
 import MapView, { type MapViewHandle } from './components/MapView';
 import PriceTierLegend from './components/PriceTierLegend';
+import ReviewFab from './components/ReviewFab';
 import Sidebar from './components/Sidebar';
-import { useNearbyPlaces, type MapCenter } from './hooks/useNearbyPlaces';
 import { MAP_DEFAULTS } from './constants/map';
+import { type MapCenter, useNearbyPlaces } from './hooks/useNearbyPlaces';
 
 /**
  * 화면 골격.
@@ -46,9 +49,7 @@ export default function App() {
       </div>
 
       <div className="overlay-top-right">
-        {/* B: <LoginButton /> — 리뷰 폼을 추가할 때 위 useNearbyPlaces(center)에서
-            applyPlaceGradePatch도 구조분해해 콜백으로 넘긴다.
-            예: <ReviewForm onSaved={(res) => applyPlaceGradePatch(res.place)} /> */}
+        <LoginButton />
         <Sidebar
           places={places}
           loading={loading}
@@ -58,8 +59,12 @@ export default function App() {
         />
       </div>
 
-      {/* 슬롯 — (+) 리뷰 작성 버튼(B) */}
-      <div className="overlay-bottom-right">{/* B: <ReviewFab /> */}</div>
+      {/* 슬롯 — (+) 리뷰 작성 버튼(B) + 예산 일정 진입 버튼(B, Day 3 추가 — 전용 슬롯이
+          없어 같은 영역에 얹었다. docs/frontend-agent-plan.md 3절에 근거 기록) */}
+      <div className="overlay-bottom-right">
+        <BudgetPlanButton />
+        <ReviewFab />
+      </div>
 
       {/* 슬롯 — 모달(B): 장소 검색 팝업, 리뷰 폼, 예산 일정.
           모달은 라우터 없이 상태로 여닫는다 (의존성 추가 금지 — 계획서 7절). */}

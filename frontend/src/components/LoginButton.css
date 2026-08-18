@@ -1,0 +1,32 @@
+/* LoginButton 전용 스타일. 카드 룩은 전역 .overlay-card를 함께 쓴다. */
+
+.login-button {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+}
+
+.login-button-loading {
+  min-width: 6rem;
+  min-height: 2.25rem;
+}
+
+.login-button-name {
+  color: #343a40;
+  white-space: nowrap;
+}
+
+.login-button button {
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  background-color: #1971c2;
+  color: #fff;
+}
+
+.login-button button:hover {
+  background-color: #1864ab;
+}
