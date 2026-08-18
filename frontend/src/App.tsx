@@ -25,7 +25,7 @@ import { type MapCenter, useNearbyPlaces } from './hooks/useNearbyPlaces';
  */
 export default function App() {
   const [center, setCenter] = useState<MapCenter>(MAP_DEFAULTS.center);
-  const { places, loading, error, retry } = useNearbyPlaces(center);
+  const { places, loading, error, retry, applyPlaceGradePatch } = useNearbyPlaces(center);
   const mapRef = useRef<MapViewHandle>(null);
 
   useEffect(() => {
@@ -63,7 +63,9 @@ export default function App() {
           없어 같은 영역에 얹었다. docs/frontend-agent-plan.md 3절에 근거 기록) */}
       <div className="overlay-bottom-right">
         <BudgetPlanButton />
-        <ReviewFab />
+        {/* 리뷰 저장·삭제 응답에 갱신된 등급이 실려 오므로, /places/nearby를 다시
+            부르지 않고 해당 핀 하나만 다시 칠한다 (frontend-agent-plan.md 2절 seam). */}
+        <ReviewFab onPlaceUpdated={applyPlaceGradePatch} />
       </div>
 
       {/* 슬롯 — 모달(B): 장소 검색 팝업, 리뷰 폼, 예산 일정.
