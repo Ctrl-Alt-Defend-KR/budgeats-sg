@@ -32,7 +32,12 @@ export type ApiErrorCode =
   | 'FORBIDDEN'
   | 'NOT_FOUND'
   | 'CONFLICT'
-  | 'RATE_LIMITED';
+  | 'RATE_LIMITED'
+  /**
+   * 백엔드의 일반 폴백 코드. 계약 6.6절 상태 코드 표에는 없지만 실제로 내려온다
+   * (예: Places 호출 실패 시 502 `ERROR`). 코드로 분기할 때 이 값을 놓치지 말 것.
+   */
+  | 'ERROR';
 
 /** 계약 6.1절 — `/places/nearby`와 `/budget-plans`가 공유하는 모양 */
 export interface PlaceSummary {
