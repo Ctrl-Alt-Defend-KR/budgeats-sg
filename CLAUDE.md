@@ -161,6 +161,7 @@ Claude Code가 해당 디렉토리에서 작업할 때 이 파일과 함께 자�
 
 **Base URL**: `/api/v1`
 **인증**: HttpOnly 쿠키 기반 세션. 인증 필요 엔드포인트는 🔒 표시.
+**공통 규칙**: JSON 필드는 camelCase, 금액은 JSON number(서버 내부는 BigDecimal), 시각은 ISO-8601 UTC 문자열.
 
 | Method | Endpoint | 설명 |
 |---|---|---|
@@ -188,6 +189,148 @@ Claude Code가 해당 디렉토리에서 작업할 때 이 파일과 함께 자�
 ```
 
 > API 스펙 변경 시 **반드시 이 파일의 API 계약을 함께 갱신**하세요. 프론트/백엔드가 다른 세션에서 개발되므로 이 파일이 유일한 계약서입니다.
+> 아래 6.1~6.7절은 `data` 안쪽 스키마입니다. `priceTier`는 `"low" | "mid" | "high"`(소문자), `priceTierSource`는 `"actual" | "google" | "unknown"`입니다.
+
+### 6.1 place 요약 객체 (공용)
+
+`/places/nearby`와 `/budget-plans`가 같은 모양을 씁니다.
+
+```json
+{
+  "placeId": "ChIJ...",
+  "name": "Maxwell Food Centre",
+  "address": "1 Kadayanallur St, Singapore",
+  "rating": 4.3,
+  "userRatingCount": 812,
+  "lat": 1.2803,
+  "lng": 103.8451,
+  "priceTier": "low",
+  "priceTierSource": "actual",
+  "actualAvgPricePerPerson": 6.5,
+  "ownReviewCount": 4
+}
+```
+
+`priceTierSource`가 `"actual"`이 아니면 `actualAvgPricePerPerson`은 `null`.
+
+### 6.2 `GET /auth/me` 🔒
+
+```json
+{ "user": { "id": 1, "displayName": "지한" } }
+```
+
+`googleSub`은 **응답에 넣지 않습니다** (내부 식별자).
+
+### 6.3 `GET /places/nearby?lat=&lng=&radius=`
+
+```json
+{ "places": [ /* 6.1절 객체 배열 */ ] }
+```
+
+`radius` 생략 시 서버 기본값(`placesNearbyDefaultRadiusM`). 정렬은 `rating` 내림차순.
+
+### 6.4 `GET /places/search?query=`
+
+```json
+{ "places": [ { "placeId": "ChIJ...", "name": "…", "address": "…" } ] }
+```
+
+평점·좌표는 넣지 않습니다 — 리뷰 작성 팝업에 불필요하고 SKU가 올라갑니다.
+
+### 6.5 `GET /places/:placeId`
+
+6.1절 객체 + 자체 리뷰 요약:
+
+```json
+{
+  "placeId": "ChIJ...", "name": "…", "address": "…",
+  "rating": 4.3, "userRatingCount": 812,
+  "lat": 1.2803, "lng": 103.8451,
+  "priceTier": "low", "priceTierSource": "actual",
+  "actualAvgPricePerPerson": 6.5, "ownReviewCount": 4,
+  "ownRatingAverage": 4.2
+}
+```
+
+### 6.6 리뷰
+
+**`POST /reviews` 🔒 요청** — `placeId` 외 구글 데이터 필드 없음:
+
+```json
+{
+  "placeId": "ChIJ...",
+  "rating": 4,
+  "pricePerPerson": 7.5,
+  "content": "가성비 좋고 안 짜요",
+  "tasteTags": ["안 짜요", "향신료 약함"],
+  "studentTags": ["가성비", "혼밥 가능"],
+  "visitType": "SOLO",
+  "revisit": true,
+  "isAnonymous": false
+}
+```
+
+`PATCH /reviews/:id` 🔒는 `placeId`를 제외한 위 필드의 부분 집합을 받습니다.
+
+**리뷰 객체 응답** (`GET /places/:placeId/reviews`의 배열 원소, `POST`/`PATCH`의 `review`):
+
+```json
+{
+  "id": 12,
+  "authorName": "지한",
+  "isAnonymous": false,
+  "rating": 4,
+  "pricePerPerson": 7.5,
+  "content": "…",
+  "tasteTags": ["안 짜요"],
+  "studentTags": ["가성비"],
+  "visitType": "SOLO",
+  "revisit": true,
+  "createdAt": "2026-08-17T09:00:00Z",
+  "updatedAt": "2026-08-17T09:00:00Z",
+  "mine": true
+}
+```
+
+- `isAnonymous: true` → `authorName`은 `null`
+- `mine`은 UX용 편의 필드입니다. **인가는 서버가 합니다** — 프론트가 이 값을 보안 수단으로 쓰지 않는다는 전제
+
+**`POST` / `PATCH` / `DELETE` 응답** — 저장 후 갱신된 등급을 함께 내려 프론트가 핀을 다시 칠하게 합니다:
+
+```json
+{
+  "review": { /* 위 객체, DELETE 시 없음 */ },
+  "place": { "placeId": "ChIJ...", "priceTier": "mid", "priceTierSource": "actual",
+             "actualAvgPricePerPerson": 9.2, "ownReviewCount": 5 }
+}
+```
+
+**상태 코드**: 생성 201 / 수정·삭제 200 / 검증 실패 422 `INVALID_INPUT` / 미인증 401 `UNAUTHENTICATED` /
+타인 리뷰 403 `FORBIDDEN` / 없는 id 404 `NOT_FOUND` / **중복 작성 409 `CONFLICT`** / rate limit 429 `RATE_LIMITED`
+
+### 6.7 `POST /budget-plans`
+
+요청:
+
+```json
+{ "totalBudgetSgd": 300, "days": 5, "mealsPerDay": 3, "lat": 1.2966, "lng": 103.7764, "radius": 1500 }
+```
+
+응답:
+
+```json
+{
+  "perMealBudgetSgd": 20.0,
+  "targetPriceTier": "high",
+  "days": [
+    { "day": 1, "meals": [ { "mealIndex": 1, "place": { /* 6.1절 객체 */ } } ] }
+  ],
+  "notice": "조건에 맞는 식당이 부족해 일부 끼니를 비워 두었습니다."
+}
+```
+
+배정 실패한 끼니는 `"place": null`. 모두 배정되면 `notice`는 `null`.
+카테고리 연속 배정 회피(5.3절)는 3일 압축 일정에서 **미구현**입니다 — 같은 등급 안에서 하루 안 중복만 피하고 순환 배정합니다.
 
 ---
 
