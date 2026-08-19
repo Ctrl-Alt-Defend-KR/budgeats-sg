@@ -30,7 +30,7 @@ public class BudgetPlanService {
                 .divide(BigDecimal.valueOf(mealCount), 2, RoundingMode.HALF_UP);
         PriceTier targetTier = targetTier(perMeal);
         List<PlaceSummary> candidates = nearbyPlaces.stream()
-                .filter(place -> place.priceTier() == targetTier)
+                .filter(place -> place.priceTier().ordinal() <= targetTier.ordinal())
                 .toList();
 
         boolean shortage = candidates.size() < request.mealsPerDay();
