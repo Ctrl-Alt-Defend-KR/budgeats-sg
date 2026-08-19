@@ -51,7 +51,11 @@ class ProductionSecretsValidatorTest {
                 3,
                 1000,
                 1500,
-                10
+                10,
+                new BudgeatsProperties.School("test.example.edu=TEST_SCHOOL"),
+                new BudgeatsProperties.Turnstile(
+                        "turnstile-site-key", "turnstile-secret-key", "review-create", "test.example.com", 5000
+                )
         );
     }
 }

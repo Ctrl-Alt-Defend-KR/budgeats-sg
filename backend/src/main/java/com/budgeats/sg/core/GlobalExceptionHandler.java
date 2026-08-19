@@ -68,7 +68,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiResponse<Void>> handleResponseStatus(ResponseStatusException exception) {
         int status = exception.getStatusCode().value();
-        String code = ERROR_CODES.getOrDefault(status, "ERROR");
+        String code = exception instanceof CodedResponseStatusException coded
+                ? coded.getCode()
+                : ERROR_CODES.getOrDefault(status, "ERROR");
         String message = exception.getReason() == null
                 ? "요청을 처리할 수 없습니다."
                 : exception.getReason();

@@ -18,7 +18,10 @@ public record ReviewUpdateRequest(
         @Size(max = 5) List<@Valid @NotBlank String> studentTags,
         VisitType visitType,
         Boolean revisit,
-        Boolean isAnonymous
+        Boolean isAnonymous,
+        Boolean freeWater,
+        Boolean serviceCharge,
+        Boolean taxCharge
 ) {
     public boolean hasChanges() {
         return rating != null
@@ -28,6 +31,9 @@ public record ReviewUpdateRequest(
                 || studentTags != null
                 || visitType != null
                 || revisit != null
-                || isAnonymous != null;
+                || isAnonymous != null
+                || freeWater != null
+                || serviceCharge != null
+                || taxCharge != null;
     }
 }

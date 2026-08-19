@@ -18,6 +18,8 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     List<Review> findByPlaceIdOrderByCreatedAtDesc(String placeId);
 
+    List<Review> findByUser_IdOrderByCreatedAtDesc(Long userId);
+
     @Query("""
             select new com.budgeats.sg.core.PlacePriceStats(
                 r.placeId, count(r), avg(r.pricePerPerson))

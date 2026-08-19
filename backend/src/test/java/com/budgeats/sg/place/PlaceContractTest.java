@@ -105,7 +105,7 @@ class PlaceContractTest {
             User user = userRepository.save(new User(placeId + "-sub-" + i, "테스트 사용자" + i));
             reviewRepository.save(new Review(
                     user, placeId, 4, new BigDecimal(pricePerPerson), "가성비 좋아요",
-                    List.of(), List.of(), VisitType.SOLO, true, false
+                    List.of(), List.of(), VisitType.SOLO, true, false, null, null, null
             ));
         }
     }

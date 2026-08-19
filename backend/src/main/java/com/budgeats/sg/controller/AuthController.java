@@ -76,7 +76,12 @@ public class AuthController {
 
     @GetMapping("/me")
     public ApiResponse<AuthMeResponse> me(@CurrentUser User user) {
-        return ApiResponse.success(new AuthMeResponse(new AuthMeResponse.UserSummary(user.getId(), user.getDisplayName())));
+        return ApiResponse.success(new AuthMeResponse(new AuthMeResponse.UserSummary(
+                user.getId(),
+                user.getDisplayName(),
+                user.getSchoolCode() != null,
+                user.getSchoolCode()
+        )));
     }
 
     private void verifyState(HttpServletRequest request, String state) {

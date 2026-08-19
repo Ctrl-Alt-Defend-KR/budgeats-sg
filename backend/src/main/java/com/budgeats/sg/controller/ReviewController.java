@@ -61,6 +61,11 @@ public class ReviewController {
         return ApiResponse.success(reviewService.list(placeId, currentUserId));
     }
 
+    @GetMapping("/me/reviews")
+    public ApiResponse<ReviewResponse.ListResponse> myReviews(@CurrentUser Long userId) {
+        return ApiResponse.success(reviewService.myReviews(userId));
+    }
+
     @PostMapping("/reviews")
     public ResponseEntity<ApiResponse<MutationResponse>> create(
             @CurrentUser Long userId,

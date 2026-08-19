@@ -24,6 +24,9 @@ public class User {
     @Column(name = "display_name", nullable = false)
     private String displayName;
 
+    @Column(name = "school_code")
+    private String schoolCode;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -31,8 +34,13 @@ public class User {
     }
 
     public User(String googleSub, String displayName) {
+        this(googleSub, displayName, null);
+    }
+
+    public User(String googleSub, String displayName, String schoolCode) {
         this.googleSub = googleSub;
         this.displayName = displayName;
+        this.schoolCode = schoolCode;
     }
 
     @PrePersist
@@ -50,6 +58,14 @@ public class User {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    public String getSchoolCode() {
+        return schoolCode;
+    }
+
+    public void updateSchoolCode(String schoolCode) {
+        this.schoolCode = schoolCode;
     }
 
     public Instant getCreatedAt() {

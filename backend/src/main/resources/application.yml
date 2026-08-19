@@ -46,3 +46,11 @@ budgeats:
   review-content-max-length: ${REVIEW_CONTENT_MAX_LENGTH:1000}
   places-nearby-default-radius-m: ${PLACES_NEARBY_DEFAULT_RADIUS_M:1500}
   review-rate-limit-per-hour: ${REVIEW_RATE_LIMIT_PER_HOUR:10}
+  school:
+    domain-mappings: "${SCHOOL_DOMAIN_MAPPINGS:}"
+  turnstile:
+    site-key: "${TURNSTILE_SITE_KEY:}"
+    secret-key: "${TURNSTILE_SECRET_KEY:}"
+    expected-action: ${TURNSTILE_EXPECTED_ACTION:review-create}
+    expected-hostname: "${TURNSTILE_EXPECTED_HOSTNAME:}"
+    timeout-millis: ${TURNSTILE_TIMEOUT_MILLIS:5000}
