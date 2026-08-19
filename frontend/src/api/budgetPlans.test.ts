@@ -1,59 +1,46 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createBudgetPlan } from './budgetPlans';
+import { lastRequest, stubApiSuccess } from './testing';
+import type { BudgetPlan, BudgetPlanRequest } from './types';
 
-describe('createBudgetPlan (mock)', () => {
-  it('요청한 기간·끼니수만큼 일정을 만든다', async () => {
-    const plan = await createBudgetPlan({
-      totalBudgetSgd: 300,
-      days: 5,
-      mealsPerDay: 3,
-      lat: 1.3521,
-      lng: 103.8198,
-    });
+const REQUEST: BudgetPlanRequest = {
+  totalBudgetSgd: 300,
+  days: 5,
+  mealsPerDay: 3,
+  lat: 1.2966,
+  lng: 103.7764,
+};
 
-    expect(plan.days).toHaveLength(5);
-    expect(plan.days.every((day) => day.meals.length === 3)).toBe(true);
+const PLAN: BudgetPlan = {
+  perMealBudgetSgd: 20,
+  targetPriceTier: 'high',
+  days: [{ day: 1, meals: [{ mealIndex: 1, place: null }] }],
+  notice: '조건에 맞는 식당이 부족해 일부 끼니를 비워 두었습니다.',
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('createBudgetPlan', () => {
+  it('POST /budget-plans로 요청 바디를 그대로 보낸다', async () => {
+    const spy = stubApiSuccess(PLAN);
+
+    await createBudgetPlan(REQUEST);
+
+    const { url, init } = lastRequest(spy);
+    expect(url).toContain('/budget-plans');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual(REQUEST);
   });
 
-  it('끼니당 예산을 총예산/(기간*끼니수)로 계산한다 (CLAUDE.md 5.3절)', async () => {
-    const plan = await createBudgetPlan({
-      totalBudgetSgd: 300,
-      days: 5,
-      mealsPerDay: 3,
-      lat: 1.3521,
-      lng: 103.8198,
-    });
+  it('응답을 그대로 반환한다 — 배정 실패 끼니(place: null)와 notice 포함', async () => {
+    stubApiSuccess(PLAN);
 
-    expect(plan.perMealBudgetSgd).toBeCloseTo(20, 5);
-  });
+    const plan = await createBudgetPlan(REQUEST);
 
-  it('예산이 아주 낮으면 저가 등급을 목표로 하고 배정 실패 끼니는 place가 null이다', async () => {
-    const plan = await createBudgetPlan({
-      totalBudgetSgd: 1,
-      days: 1,
-      mealsPerDay: 3,
-      lat: 1.3521,
-      lng: 103.8198,
-    });
-
-    expect(plan.targetPriceTier).toBe('low');
-    for (const day of plan.days) {
-      for (const meal of day.meals) {
-        expect(meal.place === null || meal.place.priceTier === 'low').toBe(true);
-      }
-    }
-  });
-
-  it('일정 저장 관련 필드가 없다 (무상태 계산 API, CLAUDE.md 4절)', async () => {
-    const plan = await createBudgetPlan({
-      totalBudgetSgd: 300,
-      days: 2,
-      mealsPerDay: 2,
-      lat: 1.3521,
-      lng: 103.8198,
-    });
-
-    expect(plan).not.toHaveProperty('id');
-    expect(plan).not.toHaveProperty('savedAt');
+    expect(plan).toEqual(PLAN);
+    expect(plan.days[0].meals[0].place).toBeNull();
+    expect(plan.notice).not.toBeNull();
   });
 });

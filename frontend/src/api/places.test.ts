@@ -1,96 +1,68 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchNearbyPlaces } from './places';
-import { PRICE_TIERS } from '../constants/price';
+import { lastRequest, stubApiSuccess } from './testing';
+import type { PlaceSummary } from './types';
 
 const SINGAPORE_CENTER = { lat: 1.3521, lng: 103.8198 };
 
-beforeEach(() => {
-  vi.useFakeTimers();
-});
+const SAMPLE: PlaceSummary = {
+  placeId: 'ChIJ1',
+  name: 'Maxwell Food Centre',
+  address: '1 Kadayanallur St, Singapore',
+  rating: 4.3,
+  userRatingCount: 812,
+  lat: 1.2803,
+  lng: 103.8451,
+  priceTier: 'low',
+  priceTierSource: 'actual',
+  actualAvgPricePerPerson: 6.5,
+  ownReviewCount: 4,
+};
 
 afterEach(() => {
-  vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
-describe('fetchNearbyPlaces (mock)', () => {
-  it('계약 6.1절 형식의 place 배열을 반환한다', async () => {
-    const promise = fetchNearbyPlaces(SINGAPORE_CENTER);
-    await vi.runAllTimersAsync();
-    const places = await promise;
+describe('fetchNearbyPlaces', () => {
+  it('응답의 places 배열을 그대로 반환한다', async () => {
+    stubApiSuccess({ places: [SAMPLE] });
 
-    expect(places.length).toBeGreaterThan(0);
-    for (const place of places) {
-      expect(typeof place.placeId).toBe('string');
-      expect(PRICE_TIERS).toContain(place.priceTier);
-      expect(place.rating).toBeGreaterThanOrEqual(0);
-      expect(Number.isFinite(place.lat)).toBe(true);
-      expect(Number.isFinite(place.lng)).toBe(true);
-    }
+    await expect(fetchNearbyPlaces(SINGAPORE_CENTER)).resolves.toEqual([SAMPLE]);
   });
 
-  it('priceTierSource가 actual이 아니면 actualAvgPricePerPerson은 null이다', async () => {
-    const promise = fetchNearbyPlaces(SINGAPORE_CENTER);
-    await vi.runAllTimersAsync();
-    const places = await promise;
+  it('lat·lng를 쿼리로 붙인다', async () => {
+    const spy = stubApiSuccess({ places: [] });
 
-    for (const place of places) {
-      if (place.priceTierSource !== 'actual') {
-        expect(place.actualAvgPricePerPerson).toBeNull();
-      } else {
-        expect(place.actualAvgPricePerPerson).not.toBeNull();
-      }
-    }
+    await fetchNearbyPlaces(SINGAPORE_CENTER);
+
+    const { url } = lastRequest(spy);
+    expect(url).toContain('/places/nearby?');
+    expect(url).toContain('lat=1.3521');
+    expect(url).toContain('lng=103.8198');
   });
 
-  it('같은 좌표로 조회하면 같은 결과를 반환한다 (결정적 시드)', async () => {
-    const first = fetchNearbyPlaces(SINGAPORE_CENTER);
-    await vi.runAllTimersAsync();
-    const firstResult = await first;
+  it('radius를 생략하면 쿼리에 넣지 않는다 (백엔드 기본값 사용)', async () => {
+    const spy = stubApiSuccess({ places: [] });
 
-    const second = fetchNearbyPlaces(SINGAPORE_CENTER);
-    await vi.runAllTimersAsync();
-    const secondResult = await second;
+    await fetchNearbyPlaces(SINGAPORE_CENTER);
 
-    expect(secondResult).toEqual(firstResult);
+    expect(lastRequest(spy).url).not.toContain('radius');
   });
 
-  it('생성된 좌표가 중심 근처(반경 5배 이내)에 있다', async () => {
-    const radius = 1500;
-    const promise = fetchNearbyPlaces({ ...SINGAPORE_CENTER, radius });
-    await vi.runAllTimersAsync();
-    const places = await promise;
+  it('radius를 주면 쿼리에 포함한다', async () => {
+    const spy = stubApiSuccess({ places: [] });
 
-    for (const place of places) {
-      const latDiffKm = Math.abs(place.lat - SINGAPORE_CENTER.lat) * 111;
-      expect(latDiffKm).toBeLessThan((radius / 1000) * 5);
-    }
+    await fetchNearbyPlaces({ ...SINGAPORE_CENTER, radius: 800 });
+
+    expect(lastRequest(spy).url).toContain('radius=800');
   });
 
-  it('rating 내림차순으로 정렬해 반환한다 (Sidebar가 재정렬하지 않는 전제)', async () => {
-    const promise = fetchNearbyPlaces(SINGAPORE_CENTER);
-    await vi.runAllTimersAsync();
-    const places = await promise;
-
-    for (let i = 1; i < places.length; i += 1) {
-      expect(places[i - 1].rating).toBeGreaterThanOrEqual(places[i].rating);
-    }
-  });
-
-  it('호출 전에 이미 취소된 signal이면 AbortError로 reject한다', async () => {
+  it('AbortSignal을 fetch로 넘긴다 (지도 이동 시 이전 요청 취소)', async () => {
+    const spy = stubApiSuccess({ places: [] });
     const controller = new AbortController();
-    controller.abort();
 
-    await expect(fetchNearbyPlaces({ ...SINGAPORE_CENTER, signal: controller.signal })).rejects.toMatchObject({
-      name: 'AbortError',
-    });
-  });
+    await fetchNearbyPlaces({ ...SINGAPORE_CENTER, signal: controller.signal });
 
-  it('대기 중 취소하면 AbortError로 reject하고 그 뒤로도 값을 반환하지 않는다', async () => {
-    const controller = new AbortController();
-    const promise = fetchNearbyPlaces({ ...SINGAPORE_CENTER, signal: controller.signal });
-
-    const assertion = expect(promise).rejects.toMatchObject({ name: 'AbortError' });
-    controller.abort();
-    await assertion;
+    expect(lastRequest(spy).init.signal).toBe(controller.signal);
   });
 });

@@ -1,4 +1,5 @@
-import type { AuthUser } from './types';
+import { ApiError, apiFetch } from './client';
+import type { AuthMeResponse, AuthUser } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -13,53 +14,25 @@ export function startGoogleLogin(): void {
 }
 
 /**
- * 백엔드 연동 전 목(mock) 레이어.
- *
- * 계약 형식(`Promise<AuthUser | null>`)은 실제 구현과 동일하게 유지한다.
- * 컴포넌트/훅은 이 함수가 목인지 실제 호출인지 몰라야 하고, 백엔드가 붙으면
- * 이 파일 안쪽만 바뀐다 (docs/frontend-agent-plan.md 6절).
- *
- * 로그인 상태를 눈으로 확인하려면 아래 값을 로컬에서만 바꿔서 쓴다.
- * (브라우저 저장소에 넣지 않는다 — CLAUDE.md 3.2절. 커밋 전에는 false로 되돌릴 것.)
- */
-const MOCK_LOGGED_IN = false;
-
-const MOCK_USER: AuthUser = { id: 1, displayName: '지한' };
-
-const MOCK_DELAY_MS = 250;
-
-function delay<T>(value: T): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), MOCK_DELAY_MS));
-}
-
-/**
  * 현재 로그인 사용자 조회. 미로그인이면 `null`을 반환한다.
  * 토큰을 클라이언트에 들지 않고, 매번 이 응답으로만 로그인 여부를 판단한다
  * (frontend/CLAUDE.md 인증 절).
  *
- * 백엔드 연동 시 교체할 실제 구현 (시그니처는 그대로 유지):
- * ```ts
- * import { apiFetch, ApiError } from './client';
- * import type { AuthMeResponse } from './types';
- *
- * export async function getMe(): Promise<AuthUser | null> {
- *   try {
- *     const { user } = await apiFetch<AuthMeResponse>('/auth/me');
- *     return user;
- *   } catch (err) {
- *     if (err instanceof ApiError && err.status === 401) return null;
- *     throw err;
- *   }
- * }
- * ```
+ * 미인증은 정상 흐름이라 401을 `null`로 바꿔 돌려준다 — 호출부가 예외로 다루지 않게 한다.
+ * 그 밖의 오류(네트워크·5xx)는 삼키지 않고 그대로 올린다 (CLAUDE.md 8절).
  */
 export async function getMe(): Promise<AuthUser | null> {
-  return delay(MOCK_LOGGED_IN ? MOCK_USER : null);
+  try {
+    const { user } = await apiFetch<AuthMeResponse>('/auth/me');
+    return user;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      return null;
+    }
+    throw err;
+  }
 }
 
-/**
- * 백엔드 연동 시: `apiFetch<void>('/auth/logout', { method: 'POST' })`.
- */
 export async function logout(): Promise<void> {
-  return delay(undefined);
+  await apiFetch<void>('/auth/logout', { method: 'POST' });
 }

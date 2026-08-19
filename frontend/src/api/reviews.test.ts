@@ -1,112 +1,134 @@
-import { describe, expect, it } from 'vitest';
-import { ApiError } from './client';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createReview, deleteReview, fetchReviews, updateReview } from './reviews';
-import type { ReviewCreateRequest } from './types';
+import { lastRequest, stubApiError, stubApiSuccess } from './testing';
+import type { ReviewCreateRequest, ReviewItem } from './types';
 
-function makeRequest(overrides: Partial<ReviewCreateRequest> = {}): ReviewCreateRequest {
-  return {
-    placeId: 'ChIJTEST0000',
-    rating: 4,
-    pricePerPerson: 7.5,
-    content: '가성비 좋고 안 짜요',
-    tasteTags: ['안 짜요'],
-    studentTags: ['가성비'],
-    visitType: 'SOLO',
-    revisit: true,
-    isAnonymous: false,
-    ...overrides,
-  };
-}
+const REVIEW: ReviewItem = {
+  id: 12,
+  authorName: '지한',
+  isAnonymous: false,
+  rating: 4,
+  pricePerPerson: 7.5,
+  content: '가성비 좋고 안 짜요',
+  tasteTags: ['안 짜요'],
+  studentTags: ['가성비'],
+  visitType: 'SOLO',
+  revisit: true,
+  createdAt: '2026-08-17T09:00:00Z',
+  updatedAt: '2026-08-17T09:00:00Z',
+  mine: true,
+};
 
-/** 테스트마다 store 안 다른 식당을 쓰도록 매번 새 placeId를 만든다 (모듈 상태 공유 방지) */
-let seq = 0;
-function uniquePlaceId(): string {
-  seq += 1;
-  return `ChIJTEST${seq}`;
-}
+const PLACE_PATCH = {
+  placeId: 'ChIJ1',
+  priceTier: 'mid' as const,
+  priceTierSource: 'actual' as const,
+  actualAvgPricePerPerson: 9.2,
+  ownReviewCount: 5,
+};
 
-describe('createReview (mock)', () => {
-  it('요청 필드를 그대로 반영한 리뷰 객체를 반환한다', async () => {
-    const request = makeRequest({ placeId: uniquePlaceId() });
-    const { review } = await createReview(request);
+const CREATE_REQUEST: ReviewCreateRequest = {
+  placeId: 'ChIJ1',
+  rating: 4,
+  pricePerPerson: 7.5,
+  content: '가성비 좋고 안 짜요',
+  tasteTags: ['안 짜요'],
+  studentTags: ['가성비'],
+  visitType: 'SOLO',
+  revisit: true,
+  isAnonymous: false,
+};
 
-    expect(review).toMatchObject({
-      rating: request.rating,
-      pricePerPerson: request.pricePerPerson,
-      content: request.content,
-      visitType: request.visitType,
-      mine: true,
-    });
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('fetchReviews', () => {
+  it('응답의 reviews 배열을 꺼내 반환한다', async () => {
+    stubApiSuccess({ reviews: [REVIEW] });
+
+    await expect(fetchReviews('ChIJ1')).resolves.toEqual([REVIEW]);
   });
 
-  it('isAnonymous가 true면 authorName이 null이다', async () => {
-    const { review } = await createReview(makeRequest({ placeId: uniquePlaceId(), isAnonymous: true }));
+  it('placeId를 URL 인코딩한다', async () => {
+    const spy = stubApiSuccess({ reviews: [] });
 
-    expect(review.authorName).toBeNull();
+    await fetchReviews('ChIJ/with slash');
+
+    expect(lastRequest(spy).url).toContain('/places/ChIJ%2Fwith%20slash/reviews');
+  });
+});
+
+describe('createReview', () => {
+  it('POST /reviews로 요청 바디를 그대로 보낸다', async () => {
+    const spy = stubApiSuccess({ review: REVIEW, place: PLACE_PATCH });
+
+    await createReview(CREATE_REQUEST);
+
+    const { url, init } = lastRequest(spy);
+    expect(url).toContain('/reviews');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual(CREATE_REQUEST);
+  });
+
+  it('요청에 구글 데이터(식당명·주소·평점)를 넣지 않는다 (CLAUDE.md 3.1절)', async () => {
+    const spy = stubApiSuccess({ review: REVIEW, place: PLACE_PATCH });
+
+    await createReview(CREATE_REQUEST);
+
+    const body = JSON.parse(lastRequest(spy).init.body as string);
+    expect(body).not.toHaveProperty('name');
+    expect(body).not.toHaveProperty('address');
+    expect(body).not.toHaveProperty('rating_google');
   });
 
   it('갱신된 place 등급을 함께 반환한다 (onPlaceUpdated seam)', async () => {
-    const placeId = uniquePlaceId();
-    const { place } = await createReview(makeRequest({ placeId }));
+    stubApiSuccess({ review: REVIEW, place: PLACE_PATCH });
 
-    expect(place.placeId).toBe(placeId);
-    expect(place.priceTierSource).toBe('actual');
+    const response = await createReview(CREATE_REQUEST);
+
+    expect(response.place).toEqual(PLACE_PATCH);
   });
 
-  it('같은 장소에 두 번째 작성을 시도하면 409 CONFLICT를 던진다', async () => {
-    const placeId = uniquePlaceId();
-    await createReview(makeRequest({ placeId }));
+  it('중복 작성은 409 CONFLICT로 올라온다 (수정 모드 전환 트리거)', async () => {
+    stubApiError('CONFLICT', '이미 이 식당에 작성한 리뷰가 있습니다.', 409);
 
-    await expect(createReview(makeRequest({ placeId }))).rejects.toMatchObject({
+    await expect(createReview(CREATE_REQUEST)).rejects.toMatchObject({
       code: 'CONFLICT',
       status: 409,
     });
   });
 });
 
-describe('fetchReviews (mock)', () => {
-  it('시드 데이터가 있는 장소는 리뷰 배열을 반환한다', async () => {
-    const reviews = await fetchReviews('ChIJMOCK00000001');
+describe('updateReview', () => {
+  it('PATCH /reviews/:id로 부분 필드만 보낸다', async () => {
+    const spy = stubApiSuccess({ review: REVIEW, place: PLACE_PATCH });
 
-    expect(reviews.length).toBeGreaterThan(0);
+    await updateReview(12, { rating: 5 });
+
+    const { url, init } = lastRequest(spy);
+    expect(url).toContain('/reviews/12');
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(init.body as string)).toEqual({ rating: 5 });
   });
 
-  it('리뷰가 없는 장소는 빈 배열을 반환한다', async () => {
-    await expect(fetchReviews(uniquePlaceId())).resolves.toEqual([]);
+  it('타인 리뷰 수정은 403으로 올라온다 (인가는 서버가 판단)', async () => {
+    stubApiError('FORBIDDEN', '본인이 작성한 리뷰만 수정할 수 있습니다.', 403);
+
+    await expect(updateReview(12, { rating: 5 })).rejects.toMatchObject({ status: 403 });
   });
 });
 
-describe('updateReview / deleteReview (mock)', () => {
-  it('본인 리뷰를 수정하면 반영된 필드와 갱신된 place를 반환한다', async () => {
-    const placeId = uniquePlaceId();
-    const { review } = await createReview(makeRequest({ placeId }));
+describe('deleteReview', () => {
+  it('DELETE /reviews/:id를 호출하고 갱신된 등급을 반환한다', async () => {
+    const spy = stubApiSuccess({ place: PLACE_PATCH });
 
-    const { review: updated } = await updateReview(review.id, { rating: 2, content: '재방문 후 낮춤' });
+    const response = await deleteReview(12);
 
-    expect(updated.rating).toBe(2);
-    expect(updated.content).toBe('재방문 후 낮춤');
-  });
-
-  it('존재하지 않는 리뷰를 수정하면 404 NOT_FOUND를 던진다', async () => {
-    await expect(updateReview(999_999, { rating: 3 })).rejects.toMatchObject({
-      code: 'NOT_FOUND',
-      status: 404,
-    });
-  });
-
-  it('타인 리뷰를 수정/삭제하면 403 FORBIDDEN을 던진다', async () => {
-    // 시드 데이터의 id: 1은 mine: false (다른 사용자 리뷰)
-    await expect(updateReview(1, { rating: 1 })).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 });
-    await expect(deleteReview(1)).rejects.toBeInstanceOf(ApiError);
-  });
-
-  it('본인 리뷰를 삭제하면 목록에서 사라지고 갱신된 place를 반환한다', async () => {
-    const placeId = uniquePlaceId();
-    const { review } = await createReview(makeRequest({ placeId }));
-
-    const { place } = await deleteReview(review.id);
-
-    expect(place.ownReviewCount).toBe(0);
-    await expect(fetchReviews(placeId)).resolves.toEqual([]);
+    const { url, init } = lastRequest(spy);
+    expect(url).toContain('/reviews/12');
+    expect(init.method).toBe('DELETE');
+    // 계약 6.6절: DELETE 응답에는 review가 없고 place만 온다
+    expect(response.place).toEqual(PLACE_PATCH);
   });
 });
