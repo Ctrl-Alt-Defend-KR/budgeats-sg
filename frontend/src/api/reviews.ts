@@ -5,6 +5,7 @@ import type {
   ReviewItem,
   ReviewMutationResponse,
   ReviewUpdateRequest,
+  MyReviewsResponse,
 } from './types';
 
 /** `GET /places/:placeId/reviews` — 최신순 (계약 6.6절). */
@@ -47,4 +48,9 @@ export async function updateReview(
 /** `DELETE /reviews/:id` — 응답에 리뷰 객체는 없고 갱신된 등급만 온다 (계약 6.6절). */
 export async function deleteReview(id: number): Promise<ReviewDeleteResponse> {
   return apiFetch<ReviewDeleteResponse>(`/reviews/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchMyReviews(signal?: AbortSignal): Promise<ReviewItem[]> {
+  const { reviews } = await apiFetch<MyReviewsResponse>('/me/reviews', { signal });
+  return reviews;
 }

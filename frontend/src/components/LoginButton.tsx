@@ -2,7 +2,7 @@ import { startGoogleLogin } from '../api/auth';
 import { useAuth } from '../hooks/useAuth';
 import './LoginButton.css';
 
-export default function LoginButton() {
+export default function LoginButton({ onMyReviews }: { onMyReviews: () => void }) {
   const { user, isLoading, logout } = useAuth();
 
   if (isLoading) {
@@ -13,6 +13,7 @@ export default function LoginButton() {
     return (
       <div className="overlay-card login-button">
         <span className="login-button-name">{user.displayName}님</span>
+        <button type="button" onClick={onMyReviews}>내 리뷰</button>
         <button type="button" onClick={() => void logout()}>
           로그아웃
         </button>

@@ -8,7 +8,7 @@ interface SidebarProps {
   places: PlaceSummary[];
   loading: boolean;
   error: Error | null;
-  onSelectPlace: (placeId: string) => void;
+  onSelectPlace: (place: PlaceSummary) => void;
   onRetry: () => void;
 }
 
@@ -80,7 +80,7 @@ export default function Sidebar({ places, loading, error, onSelectPlace, onRetry
             <button
               type="button"
               className="sidebar-item"
-              onClick={() => onSelectPlace(place.placeId)}
+              onClick={() => onSelectPlace(place)}
             >
               <span
                 className="sidebar-item-dot"
@@ -90,12 +90,12 @@ export default function Sidebar({ places, loading, error, onSelectPlace, onRetry
               <span className="sidebar-item-body">
                 <span className="sidebar-item-name">{place.name}</span>
                 <span className="sidebar-item-meta">
-                  ★ {place.rating.toFixed(1)} · {PRICE_TIER_LABEL[place.priceTier]}
+                  {place.rating === null ? '평점 없음' : `★ ${place.rating.toFixed(1)}`} · {PRICE_TIER_LABEL[place.priceTier]}
                   {/* 위치 권한을 못 받으면(거부·타임아웃) 거리 표시를 생략한다.
                       MAP_DEFAULTS.center 기준 거리는 실제 위치가 아니라 오해를 준다
                       (docs/frontend-agent-plan.md 4절 완료 기준). */}
-                  {isActualPosition && (
-                    <> · {formatDistance(haversineDistanceMeters(position, place))}</>
+                  {isActualPosition && place.lat !== null && place.lng !== null && (
+                    <> · {formatDistance(haversineDistanceMeters(position, { lat: place.lat, lng: place.lng }))}</>
                   )}
                 </span>
               </span>

@@ -33,6 +33,9 @@ export type ApiErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'RATE_LIMITED'
+  | 'SCHOOL_ACCOUNT_REQUIRED'
+  | 'CAPTCHA_INVALID'
+  | 'CAPTCHA_UNAVAILABLE'
   /**
    * 백엔드의 일반 폴백 코드. 계약 6.6절 상태 코드 표에는 없지만 실제로 내려온다
    * (예: Places 호출 실패 시 502 `ERROR`). 코드로 분기할 때 이 값을 놓치지 말 것.
@@ -44,10 +47,10 @@ export interface PlaceSummary {
   placeId: string;
   name: string;
   address: string;
-  rating: number;
+  rating: number | null;
   userRatingCount: number;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   priceTier: PriceTier;
   priceTierSource: PriceTierSource;
   /** `priceTierSource`가 `'actual'`이 아니면 null */
@@ -82,11 +85,14 @@ export type PlaceGradePatch = Pick<
 export interface AuthUser {
   id: number;
   displayName: string;
+  reviewEligible: boolean;
+  school: string | null;
 }
 
 /** 계약 6.6절 리뷰 객체 */
 export interface ReviewItem {
   id: number;
+  placeId: string;
   /** `isAnonymous`가 true면 null */
   authorName: string | null;
   isAnonymous: boolean;
@@ -105,6 +111,9 @@ export interface ReviewItem {
    * **인가는 서버가 한다.** 이 값을 보안 수단으로 쓰지 말 것 (frontend/CLAUDE.md 인증 절).
    */
   mine: boolean;
+  freeWater: boolean | null;
+  serviceCharge: boolean | null;
+  taxCharge: boolean | null;
 }
 
 /** 계약 6.6절 — `POST /reviews` 요청. `placeId` 외 구글 데이터를 넣지 않는다 */
@@ -118,10 +127,21 @@ export interface ReviewCreateRequest {
   visitType: VisitType;
   revisit: boolean;
   isAnonymous: boolean;
+  freeWater: boolean | null;
+  serviceCharge: boolean | null;
+  taxCharge: boolean | null;
+  captchaToken: string;
 }
 
 /** `PATCH /reviews/:id` — `placeId`를 제외한 위 필드의 부분 집합 */
-export type ReviewUpdateRequest = Partial<Omit<ReviewCreateRequest, 'placeId'>>;
+export type ReviewUpdateRequest = Partial<Omit<ReviewCreateRequest, 'placeId' | 'captchaToken'>>;
+
+export interface PriceTierMetadata {
+  currency: string;
+  lowMaxInclusive: number;
+  midMaxInclusive: number;
+  actualMinReviews: number;
+}
 
 /** `POST` / `PATCH /reviews` 응답 */
 export interface ReviewMutationResponse {
@@ -180,4 +200,8 @@ export interface PlaceSearchResponse {
 /** 계약 6.2절 */
 export interface AuthMeResponse {
   user: AuthUser;
+}
+
+export interface MyReviewsResponse {
+  reviews: ReviewItem[];
 }

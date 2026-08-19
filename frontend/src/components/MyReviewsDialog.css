@@ -1,0 +1,8 @@
+.my-reviews-overlay { position: fixed; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.35); }
+.my-reviews { width: min(30rem, calc(100% - 2rem)); max-height: calc(100% - 2rem); overflow: auto; }
+.my-reviews header { display: flex; justify-content: space-between; align-items: center; }
+.my-reviews h2, .my-reviews p { margin: 0; }
+.my-reviews header button { border: 0; background: none; font-size: 1.25rem; cursor: pointer; }
+.my-reviews ul { list-style: none; padding: 0; display: grid; gap: .5rem; }
+.my-reviews li > button { width: 100%; text-align: left; display: flex; flex-direction: column; gap: .2rem; padding: .65rem; border: 1px solid #e9ecef; border-radius: .5rem; background: white; cursor: pointer; }
+.my-reviews li span { font-size: .75rem; color: #495057; }

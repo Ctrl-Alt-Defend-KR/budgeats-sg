@@ -23,7 +23,7 @@ export default function PinMarker({ place, selected = false, onClick }: PinMarke
 
   return (
     <AdvancedMarker
-      position={{ lat: place.lat, lng: place.lng }}
+      position={{ lat: place.lat!, lng: place.lng! }}
       title={`${place.name} (${PRICE_TIER_LABEL[place.priceTier]})`}
       onClick={() => onClick?.(place)}
     >

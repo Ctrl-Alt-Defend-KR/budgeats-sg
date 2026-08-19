@@ -4,6 +4,7 @@ import { deleteReview, fetchReviews } from '../api/reviews';
 import { VISIT_TYPE_LABEL } from '../constants/review';
 import type { PlaceGradePatch, ReviewItem } from '../api/types';
 import './ReviewList.css';
+import { formatReviewDate } from '../utils/date';
 
 interface ReviewListProps {
   placeId: string;
@@ -23,6 +24,7 @@ export default function ReviewList({ placeId, refreshKey, onEditRequested, onPla
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -38,9 +40,10 @@ export default function ReviewList({ placeId, refreshKey, onEditRequested, onPla
       });
 
     return () => controller.abort();
-  }, [placeId, refreshKey]);
+  }, [placeId, refreshKey, retryKey]);
 
   const handleDelete = async (id: number) => {
+    if (!window.confirm('이 리뷰를 삭제할까요?')) return;
     setDeletingId(id);
     setError(null);
     try {
@@ -59,7 +62,7 @@ export default function ReviewList({ placeId, refreshKey, onEditRequested, onPla
   }
 
   if (error) {
-    return <p className="review-list-status review-list-error">{error}</p>;
+    return <p className="review-list-status review-list-error">{error} <button type="button" onClick={() => { setError(null); setIsLoading(true); setRetryKey((key) => key + 1); }}>다시 시도</button></p>;
   }
 
   if (reviews.length === 0) {
@@ -77,6 +80,7 @@ export default function ReviewList({ placeId, refreshKey, onEditRequested, onPla
 
           <p className="review-list-price">1인 {review.pricePerPerson.toLocaleString()} SGD</p>
           <p className="review-list-content">{review.content}</p>
+          <p className="review-list-date">{formatReviewDate(review.createdAt)}{review.updatedAt !== review.createdAt ? ' · 수정됨' : ''}</p>
 
           {(review.tasteTags.length > 0 || review.studentTags.length > 0) && (
             <div className="review-list-tags">

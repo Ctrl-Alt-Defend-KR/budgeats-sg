@@ -10,6 +10,7 @@ interface ImportMetaEnv {
   readonly VITE_MAP_DEFAULT_LNG: string;
   readonly VITE_MAP_DEFAULT_ZOOM: string;
   readonly VITE_MAP_DEBOUNCE_MS: string;
+  readonly VITE_TURNSTILE_SITE_KEY: string;
 }
 
 interface ImportMeta {

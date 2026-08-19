@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle } from 'react';
 import { APIProvider, Map, useMap, type MapCameraChangedEvent } from '@vis.gl/react-google-maps';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID, MAP_DEFAULTS } from '../constants/map';
 import type { MapCenter } from '../hooks/useNearbyPlaces';
@@ -17,6 +17,8 @@ export interface MapViewProps {
   /** App.tsx가 소유한다 — Sidebar와 같은 데이터를 공유해야 해서 공통 조상에 둔다. */
   places: PlaceSummary[];
   onCenterChanged: (center: MapCenter) => void;
+  selectedPlaceId: string | null;
+  onSelectPlace: (place: PlaceSummary) => void;
 }
 
 /**
@@ -30,7 +32,7 @@ export interface MapViewProps {
  * 오버레이로 그 영역을 가리면 약관 위반이다. 레이아웃은 index.css 주석 참고.
  */
 const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { center, places, onCenterChanged },
+  { center, places, onCenterChanged, selectedPlaceId, onSelectPlace },
   ref,
 ) {
   if (!GOOGLE_MAPS_API_KEY) {
@@ -39,7 +41,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
-      <MapWithPins ref={ref} center={center} places={places} onCenterChanged={onCenterChanged} />
+      <MapWithPins ref={ref} center={center} places={places} onCenterChanged={onCenterChanged} selectedPlaceId={selectedPlaceId} onSelectPlace={onSelectPlace} />
     </APIProvider>
   );
 });
@@ -47,10 +49,9 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 export default MapView;
 
 const MapWithPins = forwardRef<MapViewHandle, MapViewProps>(function MapWithPins(
-  { center, places, onCenterChanged },
+  { center, places, onCenterChanged, selectedPlaceId, onSelectPlace },
   ref,
 ) {
-  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const map = useMap();
 
   useEffect(() => {
@@ -71,8 +72,7 @@ const MapWithPins = forwardRef<MapViewHandle, MapViewProps>(function MapWithPins
         if (!place) {
           return;
         }
-        map?.panTo({ lat: place.lat, lng: place.lng });
-        setSelectedPlaceId(placeId);
+        if (place.lat !== null && place.lng !== null) map?.panTo({ lat: place.lat, lng: place.lng });
       },
     }),
     [places, map],
@@ -99,12 +99,12 @@ const MapWithPins = forwardRef<MapViewHandle, MapViewProps>(function MapWithPins
       // 디바운스는 useNearbyPlaces 안에서 한 곳으로 처리된다.
       onCameraChanged={handleCameraChanged}
     >
-      {places.map((place) => (
+      {places.filter((place) => place.lat !== null && place.lng !== null).map((place) => (
         <PinMarker
           key={place.placeId}
           place={place}
           selected={place.placeId === selectedPlaceId}
-          onClick={(clicked) => setSelectedPlaceId(clicked.placeId)}
+          onClick={onSelectPlace}
         />
       ))}
     </Map>

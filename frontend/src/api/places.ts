@@ -1,5 +1,9 @@
 import { apiFetch } from './client';
-import type { NearbyPlacesResponse, PlaceSummary } from './types';
+import type { NearbyPlacesResponse, PlaceDetail, PlaceSummary } from './types';
+
+export function fetchPlaceDetail(placeId: string, signal?: AbortSignal): Promise<PlaceDetail> {
+  return apiFetch<PlaceDetail>(`/places/${encodeURIComponent(placeId)}`, { signal });
+}
 
 /**
  * `/places/nearby` 조회 파라미터.
