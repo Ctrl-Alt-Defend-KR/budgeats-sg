@@ -20,6 +20,47 @@ public record ReviewCreateRequest(
         @Size(max = 5) List<@Valid @NotBlank String> studentTags,
         @NotNull VisitType visitType,
         boolean revisit,
-        boolean isAnonymous
+        boolean isAnonymous,
+        Boolean freeWater,
+        Boolean serviceCharge,
+        Boolean taxCharge,
+        String captchaToken
 ) {
+
+    public ReviewCreateRequest(
+            String placeId,
+            Integer rating,
+            BigDecimal pricePerPerson,
+            String content,
+            List<String> tasteTags,
+            List<String> studentTags,
+            VisitType visitType,
+            boolean revisit,
+            boolean isAnonymous
+    ) {
+        this(
+                placeId, rating, pricePerPerson, content, tasteTags, studentTags, visitType,
+                revisit, isAnonymous, null, null, null, null
+        );
+    }
+
+    public ReviewCreateRequest(
+            String placeId,
+            Integer rating,
+            BigDecimal pricePerPerson,
+            String content,
+            List<String> tasteTags,
+            List<String> studentTags,
+            VisitType visitType,
+            boolean revisit,
+            boolean isAnonymous,
+            Boolean freeWater,
+            Boolean serviceCharge,
+            Boolean taxCharge
+    ) {
+        this(
+                placeId, rating, pricePerPerson, content, tasteTags, studentTags, visitType,
+                revisit, isAnonymous, freeWater, serviceCharge, taxCharge, null
+        );
+    }
 }

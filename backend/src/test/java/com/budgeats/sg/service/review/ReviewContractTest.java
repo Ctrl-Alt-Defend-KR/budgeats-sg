@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.budgeats.sg.core.BudgeatsProperties;
 import com.budgeats.sg.core.PriceTier;
 import com.budgeats.sg.core.PriceTierSource;
 import com.budgeats.sg.core.session.SessionManager;
@@ -72,8 +73,14 @@ class ReviewContractTest {
     @Autowired
     private SessionManager sessionManager;
 
+    @Autowired
+    private BudgeatsProperties properties;
+
     @MockitoBean
     private PlacesClient placesClient;
+
+    @MockitoBean
+    private TurnstileVerifier turnstileVerifier;
 
     @Test
     void reviewEndpointsRequireSessionAndValidateInput() throws Exception {
@@ -235,7 +242,7 @@ class ReviewContractTest {
                 .create(owner.getId(), request("place-update", "원문", false))
                 .review();
         ReviewUpdateRequest patch = new ReviewUpdateRequest(
-                null, null, "수정 <b>본문</b>", List.of(), null, null, null, true
+                null, null, "수정 <b>본문</b>", List.of(), null, null, null, true, true, null, false
         );
 
         assertStatus(HttpStatus.FORBIDDEN,
@@ -248,6 +255,9 @@ class ReviewContractTest {
         assertThat(updated.content()).isEqualTo("수정 &lt;b&gt;본문&lt;/b&gt;");
         assertThat(updated.tasteTags()).isEmpty();
         assertThat(updated.isAnonymous()).isTrue();
+        assertThat(updated.freeWater()).isTrue();
+        assertThat(updated.serviceCharge()).isNull();
+        assertThat(updated.taxCharge()).isFalse();
 
         ReviewResponse.MutationResponse deleted = reviewService.delete(created.id(), owner.getId());
         assertThat(deleted.review()).isNull();
@@ -265,7 +275,7 @@ class ReviewContractTest {
         ));
         ReviewCreateRequest invalidTag = new ReviewCreateRequest(
                 "place-tag", 4, new BigDecimal("7.50"), "본문",
-                List.of("아무 태그"), List.of(), VisitType.SOLO, true, false
+                List.of("아무 태그"), List.of(), VisitType.SOLO, true, false, null, null, null
         );
         assertStatus(HttpStatus.UNPROCESSABLE_ENTITY,
                 () -> reviewService.create(user.getId(), invalidTag));
@@ -276,7 +286,7 @@ class ReviewContractTest {
                 .create(user.getId(), request("place-empty-patch", "본문", false))
                 .review();
         ReviewUpdateRequest emptyPatch = new ReviewUpdateRequest(
-                null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null
         );
         assertStatus(HttpStatus.UNPROCESSABLE_ENTITY,
                 () -> reviewService.update(created.id(), user.getId(), emptyPatch));
@@ -287,7 +297,7 @@ class ReviewContractTest {
         ReviewCreateRequest invalid = new ReviewCreateRequest(
                 " ", 6, BigDecimal.ZERO, " ",
                 List.of("안 짜요", "향신료 약함", "매운맛 있음", "한국인 입맛 맞음", "초과"),
-                List.of(), null, false, false
+                List.of(), null, false, false, null, null, null
         );
 
         Set<String> fields = validator.validate(invalid).stream()
@@ -328,6 +338,55 @@ class ReviewContractTest {
         limiter.check(1L);
     }
 
+    @Test
+    void priceTierMetadataReflectsConfiguredProperties() throws Exception {
+        mockMvc.perform(get("/api/v1/meta/price-tiers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.currency").value("SGD"))
+                .andExpect(jsonPath("$.data.lowMaxInclusive").value(properties.priceTierLowMaxSgd()))
+                .andExpect(jsonPath("$.data.midMaxInclusive").value(properties.priceTierMidMaxSgd()))
+                .andExpect(jsonPath("$.data.actualMinReviews").value(properties.priceActualMinReviews()));
+    }
+
+    @Test
+    void createAndUpdateRoundTripThreeStateFields() {
+        User user = newUser("review-three-state");
+        ReviewCreateRequest create = new ReviewCreateRequest(
+                "place-three-state", 4, new BigDecimal("7.50"), "본문",
+                List.of(), List.of(), VisitType.SOLO, true, false, true, false, null
+        );
+
+        ReviewResponse created = reviewService.create(user.getId(), create).review();
+
+        assertThat(created.freeWater()).isTrue();
+        assertThat(created.serviceCharge()).isFalse();
+        assertThat(created.taxCharge()).isNull();
+        assertThat(created.placeId()).isEqualTo("place-three-state");
+    }
+
+    @Test
+    void myReviewsRequiresLoginAndOnlyReturnsOwnReviewsNewestFirst() throws Exception {
+        mockMvc.perform(get("/api/v1/me/reviews"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("UNAUTHENTICATED"));
+
+        User me = newUser("me-reviews-owner");
+        User other = newUser("me-reviews-other");
+        reviewService.create(other.getId(), request("me-reviews-place-1", "다른 사람 리뷰", false));
+        reviewService.create(me.getId(), request("me-reviews-place-1", "내 리뷰1", false));
+        Thread.sleep(2);
+        reviewService.create(me.getId(), request("me-reviews-place-2", "내 리뷰2", true));
+
+        mockMvc.perform(get("/api/v1/me/reviews").cookie(issueSessionCookie(me.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.reviews.length()").value(2))
+                .andExpect(jsonPath("$.data.reviews[0].placeId").value("me-reviews-place-2"))
+                .andExpect(jsonPath("$.data.reviews[0].mine").value(true))
+                .andExpect(jsonPath("$.data.reviews[1].placeId").value("me-reviews-place-1"));
+
+        assertThat(reviewService.myReviews(newUser("me-reviews-empty").getId()).reviews()).isEmpty();
+    }
+
     private ReviewCreateRequest request(String placeId, String content, boolean anonymous) {
         return new ReviewCreateRequest(
                 placeId,
@@ -338,12 +397,15 @@ class ReviewContractTest {
                 List.of("가성비"),
                 VisitType.SOLO,
                 true,
-                anonymous
+                anonymous,
+                null,
+                null,
+                null
         );
     }
 
     private User newUser(String googleSub) {
-        return userRepository.saveAndFlush(new User(googleSub, "테스트 사용자"));
+        return userRepository.saveAndFlush(new User(googleSub, "테스트 사용자", "TEST_SCHOOL"));
     }
 
     private Cookie issueSessionCookie(Long userId) {
@@ -358,7 +420,8 @@ class ReviewContractTest {
         return """
                 {"placeId":"%s","rating":4,"pricePerPerson":7.5,
                  "content":"<script>좋아요</script>","tasteTags":["안 짜요"],
-                 "studentTags":["가성비"],"visitType":"SOLO","revisit":true,"isAnonymous":false}
+                 "studentTags":["가성비"],"visitType":"SOLO","revisit":true,"isAnonymous":false,
+                 "captchaToken":"test-token"}
                 """.formatted(placeId);
     }
 

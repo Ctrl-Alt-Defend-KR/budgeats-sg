@@ -3,11 +3,9 @@ package com.budgeats.sg.service.auth;
 import com.budgeats.sg.core.BudgeatsProperties;
 import com.budgeats.sg.domain.User;
 import com.budgeats.sg.repository.UserRepository;
+import com.budgeats.sg.service.auth.GoogleIdTokenValidator.VerifiedClaims;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -20,12 +18,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
 
-/**
- * Google OAuth2 코드 교환 + 사용자 upsert. 클라이언트 시크릿으로 우리 서버가 직접
- * oauth2.googleapis.com 과 TLS로 통신해 받은 id_token 이므로 서명 검증 없이 payload만
- * 디코드한다 (backend-agent-plan.md 7절 근거). 클라이언트가 보낸 id_token 을 받는 경로는
- * 만들지 않는다.
- */
+/** Google OAuth2 코드 교환, 검증된 ID Token 기반 사용자 upsert. */
 @Service
 public class AuthService {
 
@@ -35,13 +28,17 @@ public class AuthService {
 
     private final BudgeatsProperties properties;
     private final UserRepository userRepository;
-    private final ObjectMapper objectMapper;
+    private final GoogleIdTokenValidator idTokenValidator;
     private final RestClient restClient = RestClient.create();
 
-    public AuthService(BudgeatsProperties properties, UserRepository userRepository, ObjectMapper objectMapper) {
+    public AuthService(
+            BudgeatsProperties properties,
+            UserRepository userRepository,
+            GoogleIdTokenValidator idTokenValidator
+    ) {
         this.properties = properties;
         this.userRepository = userRepository;
-        this.objectMapper = objectMapper;
+        this.idTokenValidator = idTokenValidator;
     }
 
     public String buildAuthorizationUrl(String state) {
@@ -58,20 +55,43 @@ public class AuthService {
 
     public User handleCallback(String code) {
         TokenResponse tokenResponse = exchangeCode(code);
-        GoogleIdTokenClaims claims = decodeIdToken(tokenResponse.idToken());
-        String displayName = resolveDisplayName(claims);
-        return userRepository.findByGoogleSub(claims.sub())
-                .orElseGet(() -> userRepository.save(new User(claims.sub(), displayName)));
+        VerifiedClaims claims = idTokenValidator.verify(tokenResponse.idToken());
+        return upsertVerifiedUser(claims);
     }
 
-    private String resolveDisplayName(GoogleIdTokenClaims claims) {
+    User upsertVerifiedUser(VerifiedClaims claims) {
+        String displayName = resolveDisplayName(claims);
+        String schoolCode = claims.emailVerified()
+                ? schoolCodeForHostedDomain(claims.hostedDomain())
+                : null;
+        return userRepository.findByGoogleSub(claims.subject())
+                .map(user -> {
+                    user.updateSchoolCode(schoolCode);
+                    return userRepository.save(user);
+                })
+                .orElseGet(() -> userRepository.save(new User(claims.subject(), displayName, schoolCode)));
+    }
+
+    private String resolveDisplayName(VerifiedClaims claims) {
         if (claims.name() != null && !claims.name().isBlank()) {
             return claims.name();
         }
-        if (claims.email() != null && !claims.email().isBlank()) {
-            return claims.email();
-        }
         return "사용자";
+    }
+
+    private String schoolCodeForHostedDomain(String hostedDomain) {
+        if (hostedDomain == null || hostedDomain.isBlank()
+                || properties.school().domainMappings() == null) {
+            return null;
+        }
+        for (String mapping : properties.school().domainMappings().split(",")) {
+            String[] parts = mapping.split("=", 2);
+            if (parts.length == 2 && parts[0].trim().equalsIgnoreCase(hostedDomain.trim())) {
+                String schoolCode = parts[1].trim();
+                return schoolCode.isEmpty() ? null : schoolCode;
+            }
+        }
+        return null;
     }
 
     private TokenResponse exchangeCode(String code) {
@@ -99,25 +119,7 @@ public class AuthService {
         }
     }
 
-    private GoogleIdTokenClaims decodeIdToken(String idToken) {
-        String[] parts = idToken.split("\\.");
-        if (parts.length < 2) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "구글 id_token 형식이 올바르지 않습니다.");
-        }
-        try {
-            byte[] payload = Base64.getUrlDecoder().decode(parts[1]);
-            return objectMapper.readValue(payload, GoogleIdTokenClaims.class);
-        } catch (Exception e) {
-            log.error("id_token 디코드 실패", e);
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "구글 id_token 을 해석할 수 없습니다.");
-        }
-    }
-
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record TokenResponse(@JsonProperty("id_token") String idToken) {
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    private record GoogleIdTokenClaims(String sub, String name, String email) {
     }
 }

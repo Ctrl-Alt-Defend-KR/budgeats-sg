@@ -57,6 +57,8 @@ class AuthContractTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.user.id").value(user.getId()))
                 .andExpect(jsonPath("$.data.user.displayName").value("지한"))
+                .andExpect(jsonPath("$.data.user.reviewEligible").value(false))
+                .andExpect(jsonPath("$.data.user.school").value(org.hamcrest.Matchers.nullValue()))
                 .andExpect(jsonPath("$.data.user.googleSub").doesNotExist())
                 .andExpect(jsonPath("$.data.accessToken").doesNotExist())
                 .andExpect(jsonPath("$.data.refreshToken").doesNotExist());

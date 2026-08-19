@@ -24,7 +24,6 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.HtmlUtils;
 
 @Service
-@Transactional
 public class ReviewService {
 
     private static final Set<String> TASTE_TAGS = Set.of(
@@ -37,26 +36,32 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final UserRepository userRepository;
     private final ReviewRateLimiter rateLimiter;
+    private final TurnstileVerifier turnstileVerifier;
     private final BudgeatsProperties properties;
 
     public ReviewService(
             ReviewRepository reviewRepository,
             UserRepository userRepository,
             ReviewRateLimiter rateLimiter,
+            TurnstileVerifier turnstileVerifier,
             BudgeatsProperties properties
     ) {
         this.reviewRepository = reviewRepository;
         this.userRepository = userRepository;
         this.rateLimiter = rateLimiter;
+        this.turnstileVerifier = turnstileVerifier;
         this.properties = properties;
     }
 
     public MutationResponse create(Long userId, ReviewCreateRequest request) {
+        User user = currentUser(userId);
+        requireSchoolAccount(user);
+        rateLimiter.check(userId);
+        turnstileVerifier.verify(request.captchaToken());
+
         String content = sanitizeContent(request.content());
         List<String> tasteTags = validateTags(request.tasteTags(), TASTE_TAGS);
         List<String> studentTags = validateTags(request.studentTags(), STUDENT_TAGS);
-        User user = currentUser(userId);
-        rateLimiter.check(userId);
 
         Review review = new Review(
                 user,
@@ -68,7 +73,10 @@ public class ReviewService {
                 studentTags,
                 request.visitType(),
                 request.revisit(),
-                request.isAnonymous()
+                request.isAnonymous(),
+                request.freeWater(),
+                request.serviceCharge(),
+                request.taxCharge()
         );
         try {
             reviewRepository.saveAndFlush(review);
@@ -89,11 +97,21 @@ public class ReviewService {
         return new ReviewResponse.ListResponse(reviews);
     }
 
+    @Transactional(readOnly = true)
+    public ReviewResponse.ListResponse myReviews(Long userId) {
+        List<ReviewResponse> reviews = reviewRepository.findByUser_IdOrderByCreatedAtDesc(userId).stream()
+                .map(review -> reviewResponse(review, userId))
+                .toList();
+        return new ReviewResponse.ListResponse(reviews);
+    }
+
+    @Transactional
     public MutationResponse update(
             Long reviewId,
             Long userId,
             ReviewUpdateRequest request
     ) {
+        requireSchoolAccount(currentUser(userId));
         if (!request.hasChanges()) {
             throw invalidInput("수정할 필드가 없습니다.");
         }
@@ -106,6 +124,8 @@ public class ReviewService {
                 ? review.getStudentTags()
                 : validateTags(request.studentTags(), STUDENT_TAGS);
 
+        // ponytail: null은 "미변경"으로 취급 — freeWater 등 3상태 필드를 PATCH로 다시
+        // null(모름)로 되돌릴 수는 없다. 필요해지면 변경 여부를 별도로 표현하는 wrapper가 필요하다.
         review.update(
                 request.rating() == null ? review.getRating() : request.rating(),
                 request.pricePerPerson() == null ? review.getPricePerPerson() : request.pricePerPerson(),
@@ -114,12 +134,16 @@ public class ReviewService {
                 studentTags,
                 request.visitType() == null ? review.getVisitType() : request.visitType(),
                 request.revisit() == null ? review.isRevisit() : request.revisit(),
-                request.isAnonymous() == null ? review.isAnonymous() : request.isAnonymous()
+                request.isAnonymous() == null ? review.isAnonymous() : request.isAnonymous(),
+                request.freeWater() == null ? review.getFreeWater() : request.freeWater(),
+                request.serviceCharge() == null ? review.getServiceCharge() : request.serviceCharge(),
+                request.taxCharge() == null ? review.getTaxCharge() : request.taxCharge()
         );
         reviewRepository.flush();
         return mutation(review, reviewResponse(review, userId));
     }
 
+    @Transactional
     public MutationResponse delete(Long reviewId, Long userId) {
         Review review = ownedReview(reviewId, userId);
         String placeId = review.getPlaceId();
@@ -164,10 +188,21 @@ public class ReviewService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."));
     }
 
+    private void requireSchoolAccount(User user) {
+        if (user.getSchoolCode() == null || user.getSchoolCode().isBlank()) {
+            throw new com.budgeats.sg.core.CodedResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "SCHOOL_ACCOUNT_REQUIRED",
+                    "검증된 학교 계정만 리뷰를 작성하거나 수정할 수 있습니다."
+            );
+        }
+    }
+
     private ReviewResponse reviewResponse(Review review, Long currentUserId) {
         boolean mine = currentUserId != null && review.getUser().getId().equals(currentUserId);
         return new ReviewResponse(
                 review.getId(),
+                review.getPlaceId(),
                 review.isAnonymous() ? null : review.getUser().getDisplayName(),
                 review.isAnonymous(),
                 review.getRating(),
@@ -175,6 +210,9 @@ public class ReviewService {
                 review.getContent(),
                 List.copyOf(review.getTasteTags()),
                 List.copyOf(review.getStudentTags()),
+                review.getFreeWater(),
+                review.getServiceCharge(),
+                review.getTaxCharge(),
                 review.getVisitType(),
                 review.isRevisit(),
                 review.getCreatedAt(),

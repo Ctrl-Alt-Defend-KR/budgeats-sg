@@ -62,6 +62,15 @@ public class Review {
     @Column(name = "is_anonymous", nullable = false)
     private boolean anonymous;
 
+    @Column(name = "free_water")
+    private Boolean freeWater;
+
+    @Column(name = "service_charge")
+    private Boolean serviceCharge;
+
+    @Column(name = "tax_charge")
+    private Boolean taxCharge;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -81,7 +90,10 @@ public class Review {
             List<String> studentTags,
             VisitType visitType,
             boolean revisit,
-            boolean anonymous
+            boolean anonymous,
+            Boolean freeWater,
+            Boolean serviceCharge,
+            Boolean taxCharge
     ) {
         this.user = user;
         this.placeId = placeId;
@@ -93,6 +105,9 @@ public class Review {
         this.visitType = visitType;
         this.revisit = revisit;
         this.anonymous = anonymous;
+        this.freeWater = freeWater;
+        this.serviceCharge = serviceCharge;
+        this.taxCharge = taxCharge;
     }
 
     @PrePersist
@@ -115,7 +130,10 @@ public class Review {
             List<String> studentTags,
             VisitType visitType,
             boolean revisit,
-            boolean anonymous
+            boolean anonymous,
+            Boolean freeWater,
+            Boolean serviceCharge,
+            Boolean taxCharge
     ) {
         this.rating = rating;
         this.pricePerPerson = pricePerPerson;
@@ -125,6 +143,9 @@ public class Review {
         this.visitType = visitType;
         this.revisit = revisit;
         this.anonymous = anonymous;
+        this.freeWater = freeWater;
+        this.serviceCharge = serviceCharge;
+        this.taxCharge = taxCharge;
     }
 
     public Long getId() {
@@ -169,6 +190,18 @@ public class Review {
 
     public boolean isAnonymous() {
         return anonymous;
+    }
+
+    public Boolean getFreeWater() {
+        return freeWater;
+    }
+
+    public Boolean getServiceCharge() {
+        return serviceCharge;
+    }
+
+    public Boolean getTaxCharge() {
+        return taxCharge;
     }
 
     public Instant getCreatedAt() {

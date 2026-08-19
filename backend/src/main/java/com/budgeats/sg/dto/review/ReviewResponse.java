@@ -11,6 +11,7 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ReviewResponse(
         Long id,
+        String placeId,
         String authorName,
         boolean isAnonymous,
         int rating,
@@ -18,6 +19,9 @@ public record ReviewResponse(
         String content,
         List<String> tasteTags,
         List<String> studentTags,
+        Boolean freeWater,
+        Boolean serviceCharge,
+        Boolean taxCharge,
         VisitType visitType,
         boolean revisit,
         Instant createdAt,

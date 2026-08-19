@@ -35,3 +35,11 @@ budgeats:
   review-content-max-length: 1000
   places-nearby-default-radius-m: 1500
   review-rate-limit-per-hour: 10
+  school:
+    domain-mappings: test.example.edu=TEST_SCHOOL
+  turnstile:
+    site-key: test-site-key
+    secret-key: test-secret-key
+    expected-action: review-create
+    expected-hostname: test.example.com
+    timeout-millis: 5000

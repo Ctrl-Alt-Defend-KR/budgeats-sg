@@ -71,7 +71,7 @@ class ReviewRepositoryTest {
     private Review saveReview(User user, String placeId, int rating, String pricePerPerson) {
         Review review = new Review(
                 user, placeId, rating, new BigDecimal(pricePerPerson), "테스트 리뷰",
-                List.of(), List.of(), VisitType.SOLO, true, false
+                List.of(), List.of(), VisitType.SOLO, true, false, null, null, null
         );
         return reviewRepository.save(review);
     }
