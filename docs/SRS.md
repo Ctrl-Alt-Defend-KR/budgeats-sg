@@ -328,6 +328,15 @@ Base URL `/api/v1`. 전체 엔드포인트 목록과 응답 형식은 [CLAUDE.md
 
 ---
 
+### 6.4 리뷰 기능 확장 계약
+
+- `GET /api/v1/meta/price-tiers`는 `{ currency, lowMaxInclusive, midMaxInclusive, actualMinReviews }`를 반환한다.
+- `GET /api/v1/auth/me`의 user에는 `reviewEligible`과 nullable `school`이 포함된다.
+- 신규 `POST /api/v1/reviews`는 nullable Boolean인 `freeWater`, `serviceCharge`, `taxCharge`와 일회용 `captchaToken`을 받는다. CAPTCHA는 PATCH/DELETE에 요구하지 않는다.
+- 리뷰 응답은 `placeId`, 세 가지 nullable Boolean을 포함하며 `captchaToken`은 저장하거나 반환하지 않는다.
+- `GET /api/v1/me/reviews`는 인증된 현재 사용자의 리뷰만 최신순으로 반환한다.
+- Place 응답의 `rating`, `lat`, `lng`는 nullable이며 좌표가 없는 장소는 지도 핀으로 표시하지 않는다.
+
 ## 7. 요구사항 추적
 
 | 기능 (CLAUDE.md 1절) | 요구사항 ID | 관련 엔드포인트 |

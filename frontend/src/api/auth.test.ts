@@ -8,9 +8,9 @@ afterEach(() => {
 
 describe('getMe', () => {
   it('/auth/me 응답에서 user를 꺼내 반환한다', async () => {
-    const spy = stubApiSuccess({ user: { id: 1, displayName: '지한' } });
+    const spy = stubApiSuccess({ user: { id: 1, displayName: '지한', reviewEligible: true, school: 'NUS' } });
 
-    await expect(getMe()).resolves.toEqual({ id: 1, displayName: '지한' });
+    await expect(getMe()).resolves.toEqual({ id: 1, displayName: '지한', reviewEligible: true, school: 'NUS' });
     expect(lastRequest(spy).url).toContain('/auth/me');
   });
 

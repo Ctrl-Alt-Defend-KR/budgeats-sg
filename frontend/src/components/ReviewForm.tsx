@@ -15,6 +15,9 @@ import {
   type VisitType,
 } from '../api/types';
 import './ReviewForm.css';
+import TurnstileWidget from './TurnstileWidget';
+
+type TriState = boolean | null;
 
 interface ReviewFormProps {
   place: PlaceSearchResult;
@@ -46,11 +49,22 @@ export default function ReviewForm({ place, initialReview, onClose, onSaved }: R
   const [visitType, setVisitType] = useState<VisitType>(initialReview?.visitType ?? 'SOLO');
   const [revisit, setRevisit] = useState(initialReview?.revisit ?? true);
   const [isAnonymous, setIsAnonymous] = useState(initialReview?.isAnonymous ?? false);
+  const [freeWater, setFreeWater] = useState<TriState>(initialReview?.freeWater ?? null);
+  const [serviceCharge, setServiceCharge] = useState<TriState>(initialReview?.serviceCharge ?? null);
+  const [taxCharge, setTaxCharge] = useState<TriState>(initialReview?.taxCharge ?? null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const isEditing = editingId !== null;
+  const resetCaptcha = () => {
+    if (!isEditing) {
+      setCaptchaToken(null);
+      setCaptchaResetKey((key) => key + 1);
+    }
+  };
 
   const toggleTag = (list: string[], setList: (next: string[]) => void, tag: string) => {
     setList(list.includes(tag) ? list.filter((t) => t !== tag) : [...list, tag]);
@@ -66,6 +80,9 @@ export default function ReviewForm({ place, initialReview, onClose, onSaved }: R
     setVisitType(review.visitType);
     setRevisit(review.revisit);
     setIsAnonymous(review.isAnonymous);
+    setFreeWater(review.freeWater);
+    setServiceCharge(review.serviceCharge);
+    setTaxCharge(review.taxCharge);
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -74,10 +91,12 @@ export default function ReviewForm({ place, initialReview, onClose, onSaved }: R
     const price = Number(pricePerPerson);
     if (!Number.isFinite(price) || price <= 0) {
       setError('1인 가격을 올바르게 입력해 주세요.');
+      resetCaptcha();
       return;
     }
     if (!content.trim()) {
       setError('리뷰 내용을 입력해 주세요.');
+      resetCaptcha();
       return;
     }
 
@@ -90,6 +109,9 @@ export default function ReviewForm({ place, initialReview, onClose, onSaved }: R
       visitType,
       revisit,
       isAnonymous,
+      freeWater,
+      serviceCharge,
+      taxCharge,
     };
 
     setIsSubmitting(true);
@@ -101,7 +123,11 @@ export default function ReviewForm({ place, initialReview, onClose, onSaved }: R
         return;
       }
 
-      const response = await createReview({ placeId: place.placeId, ...fields });
+      if (!captchaToken) {
+        setError('CAPTCHA 인증을 완료해 주세요.');
+        return;
+      }
+      const response = await createReview({ placeId: place.placeId, ...fields, captchaToken });
       onSaved(response);
     } catch (err) {
       if (err instanceof ApiError && err.code === 'CONFLICT') {
@@ -116,6 +142,7 @@ export default function ReviewForm({ place, initialReview, onClose, onSaved }: R
       setError(describeError(err));
     } finally {
       setIsSubmitting(false);
+      resetCaptcha();
     }
   };
 
@@ -180,6 +207,13 @@ export default function ReviewForm({ place, initialReview, onClose, onSaved }: R
           ))}
         </fieldset>
 
+        <fieldset className="review-form-facts">
+          <legend>이용 정보</legend>
+          <TriStateField label="무료 물" value={freeWater} onChange={setFreeWater} />
+          <TriStateField label="서비스 차지" value={serviceCharge} onChange={setServiceCharge} />
+          <TriStateField label="세금 부과" value={taxCharge} onChange={setTaxCharge} />
+        </fieldset>
+
         <fieldset>
           <legend>유학생 태그</legend>
           {STUDENT_TAG_OPTIONS.map((tag) => (
@@ -233,12 +267,22 @@ export default function ReviewForm({ place, initialReview, onClose, onSaved }: R
           </p>
         )}
 
-        <button type="submit" disabled={isSubmitting}>
+        {!isEditing && <TurnstileWidget resetKey={captchaResetKey} onToken={setCaptchaToken} />}
+
+        <button type="submit" disabled={isSubmitting || (!isEditing && !captchaToken)}>
           {isSubmitting ? '저장 중…' : isEditing ? '리뷰 수정' : '리뷰 저장'}
         </button>
       </form>
     </div>
   );
+}
+
+function TriStateField({ label, value, onChange }: { label: string; value: TriState; onChange: (value: TriState) => void }) {
+  return <div className="review-form-fact"><span>{label}</span><div role="group" aria-label={label}>
+    {([{ label: '있음', value: true }, { label: '없음', value: false }, { label: '모름', value: null }] as const).map((option) =>
+      <button key={option.label} type="button" aria-pressed={value === option.value} onClick={() => onChange(option.value)}>{option.label}</button>
+    )}
+  </div></div>;
 }
 
 /** 409 CONFLICT 수신 시 본인이 이미 쓴 리뷰를 찾아온다. 못 찾으면 null. */
@@ -262,6 +306,12 @@ function describeError(err: unknown): string {
         return '본인이 작성한 리뷰만 수정할 수 있습니다.';
       case 'RATE_LIMITED':
         return '요청이 많습니다. 잠시 후 다시 시도해 주세요.';
+      case 'SCHOOL_ACCOUNT_REQUIRED':
+        return '검증된 학교 계정만 리뷰를 작성할 수 있습니다.';
+      case 'CAPTCHA_INVALID':
+        return 'CAPTCHA 인증이 만료되었거나 올바르지 않습니다. 다시 인증해 주세요.';
+      case 'CAPTCHA_UNAVAILABLE':
+        return 'CAPTCHA 확인 서비스를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.';
       default:
         return err.message || '리뷰 저장에 실패했습니다.';
     }

@@ -7,6 +7,11 @@ import ReviewFab from './components/ReviewFab';
 import Sidebar from './components/Sidebar';
 import { MAP_DEFAULTS } from './constants/map';
 import { type MapCenter, useNearbyPlaces } from './hooks/useNearbyPlaces';
+import type { PlaceSearchResult, PlaceSummary, PriceTierMetadata } from './api/types';
+import { fetchPriceTierMetadata } from './api/meta';
+import { useAuth } from './hooks/useAuth';
+import PlaceReviewDialog from './components/PlaceReviewDialog';
+import MyReviewsDialog from './components/MyReviewsDialog';
 
 /**
  * 화면 골격.
@@ -27,6 +32,17 @@ export default function App() {
   const [center, setCenter] = useState<MapCenter>(MAP_DEFAULTS.center);
   const { places, loading, error, retry, applyPlaceGradePatch } = useNearbyPlaces(center);
   const mapRef = useRef<MapViewHandle>(null);
+  const { user } = useAuth();
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSummary | PlaceSearchResult | null>(null);
+  const [priceMetadata, setPriceMetadata] = useState<PriceTierMetadata | null>(null);
+  const [showMyReviews, setShowMyReviews] = useState(false);
+
+  useEffect(() => { fetchPriceTierMetadata().then(setPriceMetadata).catch(() => setPriceMetadata(null)); }, []);
+
+  const selectNearbyPlace = (place: PlaceSummary) => {
+    mapRef.current?.focusPlace(place.placeId);
+    setSelectedPlace(place);
+  };
 
   useEffect(() => {
     if (error) {
@@ -37,7 +53,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <MapView ref={mapRef} center={center} places={places} onCenterChanged={setCenter} />
+      <MapView ref={mapRef} center={center} places={places} onCenterChanged={setCenter} selectedPlaceId={selectedPlace?.placeId ?? null} onSelectPlace={selectNearbyPlace} />
 
       <div className="overlay-top-left">
         <header className="overlay-card brand">
@@ -45,16 +61,16 @@ export default function App() {
           <p className="brand-subtitle">싱가포르 유학생을 위한 예산 기반 식당 추천</p>
         </header>
 
-        <PriceTierLegend />
+        <PriceTierLegend metadata={priceMetadata} />
       </div>
 
       <div className="overlay-top-right">
-        <LoginButton />
+        <LoginButton onMyReviews={() => setShowMyReviews(true)} />
         <Sidebar
           places={places}
           loading={loading}
           error={error}
-          onSelectPlace={(placeId) => mapRef.current?.focusPlace(placeId)}
+          onSelectPlace={selectNearbyPlace}
           onRetry={retry}
         />
       </div>
@@ -65,11 +81,11 @@ export default function App() {
         <BudgetPlanButton />
         {/* 리뷰 저장·삭제 응답에 갱신된 등급이 실려 오므로, /places/nearby를 다시
             부르지 않고 해당 핀 하나만 다시 칠한다 (frontend-agent-plan.md 2절 seam). */}
-        <ReviewFab onPlaceUpdated={applyPlaceGradePatch} />
+        <ReviewFab onSelectPlace={setSelectedPlace} />
       </div>
 
-      {/* 슬롯 — 모달(B): 장소 검색 팝업, 리뷰 폼, 예산 일정.
-          모달은 라우터 없이 상태로 여닫는다 (의존성 추가 금지 — 계획서 7절). */}
+      {selectedPlace && <PlaceReviewDialog place={selectedPlace} user={user} onClose={() => setSelectedPlace(null)} onPlaceUpdated={applyPlaceGradePatch} />}
+      {showMyReviews && <MyReviewsDialog places={places} onClose={() => setShowMyReviews(false)} onSelectPlace={(place) => { setShowMyReviews(false); setSelectedPlace(place); }} />}
     </div>
   );
 }

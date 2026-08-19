@@ -170,10 +170,12 @@ Claude Code가 해당 디렉토리에서 작업할 때 이 파일과 함께 자�
 | GET | `/auth/google/callback` | OAuth2 콜백 |
 | POST | `/auth/logout` 🔒 | 로그아웃 |
 | GET | `/auth/me` 🔒 | 현재 로그인 사용자 정보 |
+| GET | `/meta/price-tiers` | 서버 가격 등급 경계와 실측 최소 리뷰 수 |
 | GET | `/places/nearby?lat=&lng=&radius=` | 주변 식당 목록 (핀/사이드바용). 가격 등급 포함 |
 | GET | `/places/search?query=` | 장소 검색 (리뷰 작성 팝업용). place_id 반환 |
 | GET | `/places/:placeId` | 식당 상세 (구글 정보 실시간 조회 + 자체 리뷰 요약) |
 | GET | `/places/:placeId/reviews` | 해당 식당의 자체 리뷰 목록 (최신순) |
+| GET | `/me/reviews` 🔒 | 현재 사용자의 리뷰 목록 (최신순) |
 | POST | `/reviews` 🔒 | 자체 리뷰 작성 |
 | PATCH | `/reviews/:id` 🔒 | 리뷰 수정 (작성자 본인만) |
 | DELETE | `/reviews/:id` 🔒 | 리뷰 삭제 (작성자 본인만) |
@@ -211,12 +213,12 @@ Claude Code가 해당 디렉토리에서 작업할 때 이 파일과 함께 자�
 }
 ```
 
-`priceTierSource`가 `"actual"`이 아니면 `actualAvgPricePerPerson`은 `null`.
+`rating`, `lat`, `lng`는 Places 정보가 없으면 `null`일 수 있다. `priceTierSource`가 `"actual"`이 아니면 `actualAvgPricePerPerson`은 `null`.
 
 ### 6.2 `GET /auth/me` 🔒
 
 ```json
-{ "user": { "id": 1, "displayName": "지한" } }
+{ "user": { "id": 1, "displayName": "지한", "reviewEligible": true, "school": "NUS" } }
 ```
 
 `googleSub`은 **응답에 넣지 않습니다** (내부 식별자).
@@ -266,17 +268,22 @@ Claude Code가 해당 디렉토리에서 작업할 때 이 파일과 함께 자�
   "studentTags": ["가성비", "혼밥 가능"],
   "visitType": "SOLO",
   "revisit": true,
-  "isAnonymous": false
+  "isAnonymous": false,
+  "freeWater": true,
+  "serviceCharge": false,
+  "taxCharge": null,
+  "captchaToken": "일회용 Turnstile 토큰"
 }
 ```
 
-`PATCH /reviews/:id` 🔒는 `placeId`를 제외한 위 필드의 부분 집합을 받습니다.
+`captchaToken`은 신규 POST 전용이며 저장·응답하지 않습니다. `PATCH /reviews/:id` 🔒는 `placeId`와 `captchaToken`을 제외한 위 필드의 부분 집합을 받습니다.
 
 **리뷰 객체 응답** (`GET /places/:placeId/reviews`의 배열 원소, `POST`/`PATCH`의 `review`):
 
 ```json
 {
   "id": 12,
+  "placeId": "ChIJ...",
   "authorName": "지한",
   "isAnonymous": false,
   "rating": 4,
@@ -288,7 +295,10 @@ Claude Code가 해당 디렉토리에서 작업할 때 이 파일과 함께 자�
   "revisit": true,
   "createdAt": "2026-08-17T09:00:00Z",
   "updatedAt": "2026-08-17T09:00:00Z",
-  "mine": true
+  "mine": true,
+  "freeWater": true,
+  "serviceCharge": false,
+  "taxCharge": null
 }
 ```
 

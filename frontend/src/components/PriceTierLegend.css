@@ -30,3 +30,5 @@
   display: inline-block;
   flex-shrink: 0;
 }
+.legend-list small { margin-left: auto; color: #868e96; }
+.legend-note { max-width: 14rem; margin: .5rem 0 0; font-size: .65rem; color: #868e96; }

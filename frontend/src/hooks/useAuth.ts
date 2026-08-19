@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getMe, logout as logoutRequest } from '../api/auth';
 import type { AuthUser } from '../api/types';
 
@@ -10,11 +10,13 @@ interface UseAuthResult {
   logout: () => Promise<void>;
 }
 
+const AuthContext = createContext<UseAuthResult | null>(null);
+
 /**
  * 로그인 여부는 `GET /auth/me` 응답으로만 판단한다.
  * 토큰을 클라이언트에 들지 않는다 (frontend/CLAUDE.md 인증 절).
  */
-export function useAuth(): UseAuthResult {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -41,5 +43,15 @@ export function useAuth(): UseAuthResult {
     setUser(null);
   }, []);
 
-  return { user, isLoading, isLoggedIn: user !== null, logout };
+  const value = useMemo(
+    () => ({ user, isLoading, isLoggedIn: user !== null, logout }),
+    [user, isLoading, logout],
+  );
+  return createElement(AuthContext.Provider, { value }, children);
+}
+
+export function useAuth(): UseAuthResult {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth는 AuthProvider 안에서 사용해야 합니다.');
+  return context;
 }

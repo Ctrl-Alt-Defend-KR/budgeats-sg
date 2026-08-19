@@ -102,6 +102,13 @@
   gap: 0.5rem !important;
 }
 
+.review-form-facts { flex-direction: column !important; }
+.review-form-fact { display: flex; align-items: center; justify-content: space-between; gap: .5rem; width: 100%; font-size: .8125rem; }
+.review-form-fact div { display: flex; gap: .25rem; }
+.review-form-fact button { border: 1px solid #ced4da; border-radius: 999px; padding: .25rem .55rem; background: #fff; cursor: pointer; }
+.review-form-fact button[aria-pressed='true'] { border-color: #1971c2; background: #e7f5ff; color: #1864ab; }
+.review-form-turnstile { min-height: 65px; }
+
 .review-form-char-count {
   align-self: flex-end;
   font-size: 0.6875rem;

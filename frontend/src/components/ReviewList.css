@@ -54,6 +54,7 @@
   color: #212529;
   white-space: pre-wrap;
 }
+.review-list-date { margin: 0; font-size: .6875rem; color: #868e96; }
 
 .review-list-tags {
   display: flex;

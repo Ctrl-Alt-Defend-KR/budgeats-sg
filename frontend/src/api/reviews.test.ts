@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createReview, deleteReview, fetchReviews, updateReview } from './reviews';
+import { createReview, deleteReview, fetchMyReviews, fetchReviews, updateReview } from './reviews';
 import { lastRequest, stubApiError, stubApiSuccess } from './testing';
 import type { ReviewCreateRequest, ReviewItem } from './types';
 
 const REVIEW: ReviewItem = {
   id: 12,
+  placeId: 'ChIJ1',
   authorName: '지한',
   isAnonymous: false,
   rating: 4,
@@ -17,6 +18,9 @@ const REVIEW: ReviewItem = {
   createdAt: '2026-08-17T09:00:00Z',
   updatedAt: '2026-08-17T09:00:00Z',
   mine: true,
+  freeWater: true,
+  serviceCharge: false,
+  taxCharge: null,
 };
 
 const PLACE_PATCH = {
@@ -37,6 +41,10 @@ const CREATE_REQUEST: ReviewCreateRequest = {
   visitType: 'SOLO',
   revisit: true,
   isAnonymous: false,
+  freeWater: true,
+  serviceCharge: false,
+  taxCharge: null,
+  captchaToken: 'turnstile-test-token',
 };
 
 afterEach(() => {
@@ -56,6 +64,15 @@ describe('fetchReviews', () => {
     await fetchReviews('ChIJ/with slash');
 
     expect(lastRequest(spy).url).toContain('/places/ChIJ%2Fwith%20slash/reviews');
+  });
+});
+
+describe('fetchMyReviews', () => {
+  it('GET /me/reviews 응답의 현재 사용자 리뷰 배열을 반환한다', async () => {
+    const mine = { ...REVIEW, placeId: 'ChIJ1' };
+    const spy = stubApiSuccess({ reviews: [mine] });
+    await expect(fetchMyReviews()).resolves.toEqual([mine]);
+    expect(lastRequest(spy).url).toContain('/me/reviews');
   });
 });
 
