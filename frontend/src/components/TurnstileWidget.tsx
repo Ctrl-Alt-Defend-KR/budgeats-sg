@@ -27,6 +27,7 @@ export default function TurnstileWidget({ resetKey, onToken }: Props) {
       if (!window.turnstile || widgetId.current) return;
       widgetId.current = window.turnstile.render(`#${elementId}`, {
         sitekey: siteKey,
+        action: 'review-create',
         callback: (token: string) => onToken(token),
         'expired-callback': () => onToken(null),
         'error-callback': () => onToken(null),
