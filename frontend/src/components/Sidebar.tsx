@@ -1,7 +1,7 @@
-import { useCurrentPosition } from '../hooks/useCurrentPosition';
 import { PRICE_TIER_COLOR, PRICE_TIER_LABEL } from '../constants/price';
 import { formatDistance, haversineDistanceMeters } from '../utils/distance';
 import type { PlaceSummary } from '../api/types';
+import type { MapCenter } from '../hooks/useNearbyPlaces';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -10,6 +10,13 @@ interface SidebarProps {
   error: Error | null;
   onSelectPlace: (place: PlaceSummary) => void;
   onRetry: () => void;
+  /**
+   * 거리 계산 기준점. `useCurrentPosition`은 App.tsx에서 한 번만 호출하고 결과를 내려준다 —
+   * 컴포넌트마다 훅을 부르면 geolocation 요청이 중복되고 지도와 좌표가 어긋난다.
+   */
+  position: MapCenter;
+  /** false면 `position`이 폴백값이라는 뜻이므로 거리를 표시하지 않는다. */
+  isActualPosition: boolean;
 }
 
 /**
@@ -22,8 +29,15 @@ interface SidebarProps {
  * 이미 보여줄 목록이 있으므로 배경에서 재조회가 실패해도 목록을 유지한 채
  * 작은 배너로만 알린다 — 패닝할 때마다 리스트가 통째로 사라졌다 나타나는 걸 막는다.
  */
-export default function Sidebar({ places, loading, error, onSelectPlace, onRetry }: SidebarProps) {
-  const { position, isActualPosition } = useCurrentPosition();
+export default function Sidebar({
+  places,
+  loading,
+  error,
+  onSelectPlace,
+  onRetry,
+  position,
+  isActualPosition,
+}: SidebarProps) {
 
   if (places.length === 0 && loading) {
     return (
