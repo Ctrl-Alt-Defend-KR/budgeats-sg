@@ -1,0 +1,23 @@
+/* CurrentPositionMarker 전용 스타일. 전역 스타일은 src/index.css. */
+
+/*
+ * 파란 점 + 반투명 후광. 지도 어느 배경(공원 초록, 도로 회색, 바다 파랑) 위에서도
+ * 보이도록 흰 테두리를 두른다.
+ */
+.current-position {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background-color: rgba(26, 115, 232, 0.18);
+}
+
+.current-position-dot {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 50%;
+  background-color: #1a73e8;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}

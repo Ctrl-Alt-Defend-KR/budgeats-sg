@@ -1,0 +1,41 @@
+/* RecenterButton 전용 스타일. 배치는 index.css 의 .overlay-bottom-left 가 맡는다. */
+
+.recenter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem 0.5rem 0.75rem;
+  border: none;
+  border-radius: var(--overlay-radius);
+  background-color: var(--overlay-bg);
+  box-shadow: var(--overlay-shadow);
+  color: #1a73e8;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.recenter:hover {
+  background-color: #ffffff;
+}
+
+.recenter:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.recenter-label {
+  white-space: nowrap;
+}
+
+/* 좁은 화면에서는 아이콘만 남긴다 — 지도를 가리는 면적을 줄인다. */
+@media (max-width: 640px) {
+  .recenter {
+    padding: 0.5rem;
+  }
+
+  .recenter-label {
+    display: none;
+  }
+}

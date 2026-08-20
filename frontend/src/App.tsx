@@ -7,6 +7,8 @@ import ReviewFab from './components/ReviewFab';
 import Sidebar from './components/Sidebar';
 import { MAP_DEFAULTS } from './constants/map';
 import { type MapCenter, useNearbyPlaces } from './hooks/useNearbyPlaces';
+import { useCurrentPosition } from './hooks/useCurrentPosition';
+import RecenterButton from './components/RecenterButton';
 import type { PlaceSearchResult, PlaceSummary, PriceTierMetadata } from './api/types';
 import { fetchPriceTierMetadata } from './api/meta';
 import { useAuth } from './hooks/useAuth';
@@ -37,7 +39,29 @@ export default function App() {
   const [priceMetadata, setPriceMetadata] = useState<PriceTierMetadata | null>(null);
   const [showMyReviews, setShowMyReviews] = useState(false);
 
+  // 위치 권한은 App에서 한 번만 요청하고 지도·사이드바가 같은 좌표를 쓴다.
+  // 컴포넌트마다 훅을 부르면 geolocation 요청이 중복되고 값이 서로 어긋난다.
+  const { position, isActualPosition } = useCurrentPosition();
+  // 위치가 도착했을 때 지도를 딱 한 번만 옮긴다. 이 플래그가 없으면 사용자가
+  // 직접 드래그한 뒤에도 지도가 내 위치로 되돌아가 조작을 빼앗는다.
+  const didCenterOnUser = useRef(false);
+
+  useEffect(() => {
+    if (!isActualPosition || didCenterOnUser.current) {
+      return;
+    }
+    didCenterOnUser.current = true;
+    mapRef.current?.panToPosition(position);
+    setCenter(position);
+  }, [isActualPosition, position]);
+
   useEffect(() => { fetchPriceTierMetadata().then(setPriceMetadata).catch(() => setPriceMetadata(null)); }, []);
+
+  const recenterOnUser = () => {
+    mapRef.current?.panToPosition(position);
+    // 지도만 옮기면 목록이 이전 위치에 남는다. 조회 기준점도 함께 옮긴다.
+    setCenter(position);
+  };
 
   const selectNearbyPlace = (place: PlaceSummary) => {
     mapRef.current?.focusPlace(place.placeId);
@@ -53,7 +77,15 @@ export default function App() {
 
   return (
     <div className="app">
-      <MapView ref={mapRef} center={center} places={places} onCenterChanged={setCenter} selectedPlaceId={selectedPlace?.placeId ?? null} onSelectPlace={selectNearbyPlace} />
+      <MapView
+        ref={mapRef}
+        center={center}
+        places={places}
+        onCenterChanged={setCenter}
+        selectedPlaceId={selectedPlace?.placeId ?? null}
+        onSelectPlace={selectNearbyPlace}
+        currentPosition={isActualPosition ? position : null}
+      />
 
       <div className="overlay-top-left">
         <header className="overlay-card brand">
@@ -72,8 +104,17 @@ export default function App() {
           error={error}
           onSelectPlace={selectNearbyPlace}
           onRetry={retry}
+          position={position}
+          isActualPosition={isActualPosition}
         />
       </div>
+
+      {/* 위치 권한이 없으면 돌아갈 곳이 없으므로 버튼 자체를 숨긴다. */}
+      {isActualPosition && (
+        <div className="overlay-bottom-left">
+          <RecenterButton onClick={recenterOnUser} />
+        </div>
+      )}
 
       {/* 슬롯 — (+) 리뷰 작성 버튼(B) + 예산 일정 진입 버튼(B, Day 3 추가 — 전용 슬롯이
           없어 같은 영역에 얹었다. docs/frontend-agent-plan.md 3절에 근거 기록) */}

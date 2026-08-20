@@ -4,11 +4,19 @@ import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_MAP_ID, MAP_DEFAULTS } from '../consta
 import type { MapCenter } from '../hooks/useNearbyPlaces';
 import type { PlaceSummary } from '../api/types';
 import PinMarker from './PinMarker';
+import CurrentPositionMarker from './CurrentPositionMarker';
 import './MapView.css';
 
 export interface MapViewHandle {
   /** 사이드바 항목 클릭 시 호출 — 해당 핀으로 이동하고 강조한다 (frontend-agent-plan.md 4절 Day2). */
   focusPlace: (placeId: string) => void;
+  /**
+   * 임의 좌표로 지도를 옮긴다. 위치 권한이 늦게 도착했을 때 App이 호출한다.
+   *
+   * `defaultCenter`는 최초 마운트에만 반영되므로 prop을 바꿔도 지도가 움직이지 않는다.
+   * 그래서 명령형으로 panTo 한다.
+   */
+  panToPosition: (center: MapCenter) => void;
 }
 
 export interface MapViewProps {
@@ -19,6 +27,8 @@ export interface MapViewProps {
   onCenterChanged: (center: MapCenter) => void;
   selectedPlaceId: string | null;
   onSelectPlace: (place: PlaceSummary) => void;
+  /** 위치 권한을 받았을 때만 채워진다. null이면 현재 위치 마커를 그리지 않는다. */
+  currentPosition: MapCenter | null;
 }
 
 /**
@@ -32,7 +42,7 @@ export interface MapViewProps {
  * 오버레이로 그 영역을 가리면 약관 위반이다. 레이아웃은 index.css 주석 참고.
  */
 const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
-  { center, places, onCenterChanged, selectedPlaceId, onSelectPlace },
+  { center, places, onCenterChanged, selectedPlaceId, onSelectPlace, currentPosition },
   ref,
 ) {
   if (!GOOGLE_MAPS_API_KEY) {
@@ -41,7 +51,15 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
-      <MapWithPins ref={ref} center={center} places={places} onCenterChanged={onCenterChanged} selectedPlaceId={selectedPlaceId} onSelectPlace={onSelectPlace} />
+      <MapWithPins
+        ref={ref}
+        center={center}
+        places={places}
+        onCenterChanged={onCenterChanged}
+        selectedPlaceId={selectedPlaceId}
+        onSelectPlace={onSelectPlace}
+        currentPosition={currentPosition}
+      />
     </APIProvider>
   );
 });
@@ -49,7 +67,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 export default MapView;
 
 const MapWithPins = forwardRef<MapViewHandle, MapViewProps>(function MapWithPins(
-  { center, places, onCenterChanged, selectedPlaceId, onSelectPlace },
+  { center, places, onCenterChanged, selectedPlaceId, onSelectPlace, currentPosition },
   ref,
 ) {
   const map = useMap();
@@ -73,6 +91,9 @@ const MapWithPins = forwardRef<MapViewHandle, MapViewProps>(function MapWithPins
           return;
         }
         if (place.lat !== null && place.lng !== null) map?.panTo({ lat: place.lat, lng: place.lng });
+      },
+      panToPosition: (target: MapCenter) => {
+        map?.panTo(target);
       },
     }),
     [places, map],
@@ -99,6 +120,7 @@ const MapWithPins = forwardRef<MapViewHandle, MapViewProps>(function MapWithPins
       // 디바운스는 useNearbyPlaces 안에서 한 곳으로 처리된다.
       onCameraChanged={handleCameraChanged}
     >
+      {currentPosition && <CurrentPositionMarker position={currentPosition} />}
       {places.filter((place) => place.lat !== null && place.lng !== null).map((place) => (
         <PinMarker
           key={place.placeId}
