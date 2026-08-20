@@ -8,6 +8,7 @@ import Sidebar from './components/Sidebar';
 import { MAP_DEFAULTS } from './constants/map';
 import { type MapCenter, useNearbyPlaces } from './hooks/useNearbyPlaces';
 import { useCurrentPosition } from './hooks/useCurrentPosition';
+import RecenterButton from './components/RecenterButton';
 import type { PlaceSearchResult, PlaceSummary, PriceTierMetadata } from './api/types';
 import { fetchPriceTierMetadata } from './api/meta';
 import { useAuth } from './hooks/useAuth';
@@ -51,11 +52,16 @@ export default function App() {
     }
     didCenterOnUser.current = true;
     mapRef.current?.panToPosition(position);
-    // 조회 기준점도 함께 옮긴다 — 지도만 움직이면 목록이 이전 위치에 남는다.
     setCenter(position);
   }, [isActualPosition, position]);
 
   useEffect(() => { fetchPriceTierMetadata().then(setPriceMetadata).catch(() => setPriceMetadata(null)); }, []);
+
+  const recenterOnUser = () => {
+    mapRef.current?.panToPosition(position);
+    // 지도만 옮기면 목록이 이전 위치에 남는다. 조회 기준점도 함께 옮긴다.
+    setCenter(position);
+  };
 
   const selectNearbyPlace = (place: PlaceSummary) => {
     mapRef.current?.focusPlace(place.placeId);
@@ -102,6 +108,13 @@ export default function App() {
           isActualPosition={isActualPosition}
         />
       </div>
+
+      {/* 위치 권한이 없으면 돌아갈 곳이 없으므로 버튼 자체를 숨긴다. */}
+      {isActualPosition && (
+        <div className="overlay-bottom-left">
+          <RecenterButton onClick={recenterOnUser} />
+        </div>
+      )}
 
       {/* 슬롯 — (+) 리뷰 작성 버튼(B) + 예산 일정 진입 버튼(B, Day 3 추가 — 전용 슬롯이
           없어 같은 영역에 얹었다. docs/frontend-agent-plan.md 3절에 근거 기록) */}

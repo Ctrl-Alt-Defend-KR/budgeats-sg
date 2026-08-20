@@ -82,6 +82,21 @@ body {
   max-height: calc(100% - var(--overlay-inset) * 2);
 }
 
+/*
+ * 왼쪽 아래 슬롯 — 현재 위치 버튼.
+ *
+ * ⚠️ 화면 맨 아래 왼쪽은 Google attribution(로고)이 그려지는 자리이고 가리면 약관
+ * 위반이다 (CLAUDE.md 3.1절). 그래서 inset 만큼이 아니라 로고 높이(약 2rem)를
+ * 더 띄워서 얹는다. 여기에 다른 요소를 추가할 때도 이 여백을 줄이지 말 것.
+ */
+.overlay-bottom-left {
+  position: absolute;
+  left: var(--overlay-inset);
+  bottom: calc(var(--overlay-inset) + 2rem);
+  z-index: 1;
+  width: max-content;
+}
+
 .overlay-bottom-right {
   position: absolute;
   bottom: var(--overlay-inset);
